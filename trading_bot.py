@@ -32,7 +32,7 @@ class TradingBot:
         asset_value = price * self.quantity
         total_value = self.cash + asset_value
 
-        volume = abs(self.cash - asset_value)
+        volume = abs(self.cash - asset_value) / 2
         if volume < 5001:
             return False
 
@@ -43,7 +43,7 @@ class TradingBot:
         elif ratio > 0.505:
             self.upbit.sell_limit_order(TICKER, price, volume / price)
             ret = self.wait()
-
+            
         return ret
     
     def wait(self):
