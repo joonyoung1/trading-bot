@@ -17,6 +17,7 @@ class TradingBot:
     def __init__(self):
         self.upbit = pyupbit.Upbit(ACCESS, SECRET)
         self.update_balance()
+        self.cancel_orders()
     
     def run(self):
         wm = WebSocketManager("ticker", [TICKER])
@@ -48,16 +49,23 @@ class TradingBot:
     
     def wait(self):
         for _ in range(30):
-            order = self.upbit.get_order(TICKER)
-            if not order:
+            orders = self.upbit.get_order(TICKER)
+            if not orders:
                 return True
-            
             time.sleep(10)
+        
+        self.cancel_orders()
         return False
 
     def update_balance(self):
         self.cash = self.upbit.get_balance("KRW")
         self.quantity = self.upbit.get_balance(TICKER)
+    
+    def cancel_orders(self):
+        orders = self.upbit.get_order(TICKER)
+        for order in orders:
+            uuid = order["uuid"]
+            self.upbit.cancel_order(uuid)
 
 
 if __name__ == "__main__":
