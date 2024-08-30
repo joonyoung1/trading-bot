@@ -18,7 +18,7 @@ TICKER = os.getenv("TICKER")
 
 
 class Manager:
-    def __init__(self, logfile: str = "logfile.log"):
+    def __init__(self, logfile: str = "logfile.log") -> None:
         self.logfile: str = logfile
 
         self.queue = Queue()
@@ -30,7 +30,7 @@ class Manager:
         self.brocker = Broker(ACCESS, SECRET)
         self.trading_bot = TradingBot(TICKER, self.queue, self.brocker, self.logger)
 
-    def init_logger(self):
+    def init_logger(self) -> None:
         logger = logging.getLogger("logger")
         logger.setLevel(logging.DEBUG)
 
