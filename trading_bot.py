@@ -1,73 +1,94 @@
-import os
-import time
-from dotenv import load_dotenv
-
-load_dotenv()
-
-import pyupbit
-from pyupbit import WebSocketManager
-
-
-ACCESS = os.getenv("ACCESS")
-SECRET = os.getenv("SECRET")
-TICKER = os.getenv("TICKER")
+from broker import Broker
+from logging import Logger
+from multiprocessing import Queue
 
 
 class TradingBot:
-    def __init__(self):
-        self.upbit = pyupbit.Upbit(ACCESS, SECRET)
-        self.update_balance()
-        self.cancel_orders()
-    
-    def run(self):
-        wm = WebSocketManager("ticker", [TICKER])
-        while True:
-            data = wm.get()
-            price = data["trade_price"]
-            ret = self.action(price)
-            
-            if ret:
-                self.update_balance()
-    
-    def action(self, price):
-        asset_value = price * self.quantity
-        total_value = self.cash + asset_value
+    SENTINEL = object()
 
+    def __init__(
+        self, ticker: str, queue: Queue, broker: Broker, logger: Logger
+    ) -> None:
+        self.ticker: str = ticker
+        self.queue: Queue = queue
+        self.broker: Broker = broker
+        self.logger: Logger = logger
+
+        self.cash: float = 0
+        self.quantity: float = 0
+
+        self.update_balance()
+        self.broker.cancel_orders(self.ticker)
+        self.logger.info("Trading bot initialized.")
+
+    def start(self) -> None:
+        self.logger.info("Trading bot started.")
+        last_price = -1
+
+        while True:
+            data = self.queue.get()
+            if data is self.SENTINEL:
+                break
+
+            price = data["trade_price"]
+            if last_price != price:
+                last_price = price
+                self.process_trade(price)
+
+    def terminate(self) -> None:
+        self.logger.info("Trading bot terminated.")
+        self.queue.put(self.SENTINEL)
+
+    def update_balance(self) -> None:
+        try:
+            self.cash = self.broker.get_balance("KRW")
+            self.quantity = self.broker.get_balance(self.ticker)
+            self.logger.info(f"Cash: ₩{self.cash}, Assets: {self.quantity} units.")
+        except Exception as e:
+            self.logger.error(f"Failed to update balance: {e}")
+            raise
+
+    def process_trade(self, price: float) -> None:
+        asset_value = price * self.quantity
         volume = abs(self.cash - asset_value) / 2
         if volume < 5001:
-            return False
+            return
 
-        ratio = asset_value / total_value
+        ratio = asset_value / asset_value + self.cash
         if ratio < 0.5:
-            self.upbit.buy_limit_order(TICKER, price, volume / price)
-            ret = self.wait()
+            self.buy(price, volume / price)
         elif ratio > 0.505:
-            self.upbit.sell_limit_order(TICKER, price, volume / price)
-            ret = self.wait()
-            
-        return ret
-    
-    def wait(self):
-        for _ in range(30):
-            orders = self.upbit.get_order(TICKER)
-            if not orders:
-                return True
-            time.sleep(10)
-        
-        self.cancel_orders()
-        return False
+            self.sell(price, volume / price)
 
-    def update_balance(self):
-        self.cash = self.upbit.get_balance("KRW")
-        self.quantity = self.upbit.get_balance(TICKER)
-    
-    def cancel_orders(self):
-        orders = self.upbit.get_order(TICKER)
-        for order in orders:
+    def buy(self, price: float, quantity: float) -> None:
+        self.logger.info(f"Buy {quantity} at {price} (₩{price * quantity}).")
+
+        try:
+            order = self.broker.buy_limit_order(self.ticker, price, quantity)
             uuid = order["uuid"]
-            self.upbit.cancel_order(uuid)
+            self.logger.info(f"Order [{uuid}] opened.")
+            self.wait(uuid)
+        except Exception as e:
+            self.logger.error(f"Failed to place buy order: {e}")
 
+    def sell(self, price: float, quantity: float) -> None:
+        self.logger.info(f"Sell {quantity} at {price} (₩{price * quantity}).")
 
-if __name__ == "__main__":
-    trading_bot = TradingBot()
-    trading_bot.run()
+        try:
+            order = self.broker.sell_limit_order(self.ticker, price, quantity)
+            uuid = order["uuid"]
+            self.logger.info(f"Order [{uuid}] opened.")
+            self.wait(uuid)
+        except Exception as e:
+            self.logger.error(f"Failed to place sell order: {e}")
+
+    def wait(self, uuid: str) -> None:
+        closed = self.broker.wait_order_close(uuid)
+        if closed:
+            self.logger.info(f"Order [{uuid}] has been closed.")
+        else:
+            self.logger.warning(
+                f"Order [{uuid}] did not close within the expected time. Cancelling all open orders."
+            )
+            self.broker.cancel_orders(self.ticker)
+            self.logger.info(f"All open orders have been canceled.")
