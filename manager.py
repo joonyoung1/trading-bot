@@ -10,11 +10,15 @@ from pyupbit import WebSocketClient
 
 from broker import Broker
 from trading_bot import TradingBot
+from chat_bot import ChatBot
 
 
 ACCESS = os.getenv("ACCESS")
 SECRET = os.getenv("SECRET")
 TICKER = os.getenv("TICKER")
+
+TOKEN = os.getenv("TOKEN")
+CHAT_ID = os.getenv("CHAT_ID")
 
 
 class Manager:
@@ -28,7 +32,10 @@ class Manager:
 
         self.logger = self.init_logger()
         self.brocker = Broker(ACCESS, SECRET)
-        self.trading_bot = TradingBot(TICKER, self.queue, self.brocker, self.logger)
+        self.chat_bot = ChatBot(TOKEN, CHAT_ID)
+        self.trading_bot = TradingBot(
+            TICKER, self.queue, self.brocker, self.chat_bot, self.logger
+        )
 
     def init_logger(self) -> None:
         logger = logging.getLogger("logger")
