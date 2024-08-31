@@ -60,14 +60,12 @@ class Manager:
         return logger
 
     def start(self) -> None:
-        self.chat_bot.start()
         self.price_fetcher.start()
         self.trading_bot.start()
         
     def terminate(self) -> None:
         self.price_fetcher.terminate()
         self.trading_bot.terminate()
-        self.chat_bot.terminate()
 
 
 if __name__ == "__main__":
@@ -76,5 +74,5 @@ if __name__ == "__main__":
     try:
         manager.start()
     except Exception as e:
-        print(e)
+        print("manager error handler")
         manager.terminate()
