@@ -1,3 +1,4 @@
+import pyupbit
 from pyupbit import Upbit
 import time
 
@@ -5,6 +6,9 @@ import time
 class Broker:
     def __init__(self, access: str, secret: str) -> None:
         self.upbit: Upbit = Upbit(access, secret)
+    
+    def get_current_price(self, ticker: str) -> float:
+        return pyupbit.get_current_price(ticker)
 
     def get_balance(self, ticker: str) -> float:
         return self.upbit.get_balance(ticker)
