@@ -1,3 +1,5 @@
+from functools import wraps
+
 from broker import Broker
 from logging import Logger
 from chat_bot import ChatBot
@@ -29,6 +31,18 @@ class TradingBot:
         self.logger.info("Trading bot initialized.")
         self.chat_bot.notify(self.broker.get_current_price(self.ticker), self.cash, self.quantity)
 
+    @staticmethod
+    def handle_errors(method):
+        @wraps(method)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return method(self, *args, **kwargs)
+            except Exception as e:
+                self.logger.error(f"An error occurred: {e}", exc_info=True)
+                raise
+        return wrapper
+
+    @handle_errors
     def start(self) -> None:
         self.logger.info("Trading bot started.")
         last_price = -1
@@ -43,10 +57,12 @@ class TradingBot:
                 last_price = price
                 self.process_trade(price)
 
+    @handle_errors
     def terminate(self) -> None:
         self.logger.info("Trading bot terminated.")
         self.queue.put(self.SENTINEL)
 
+    @handle_errors
     def update_balance(self) -> None:
         try:
             self.cash = self.broker.get_balance("KRW")
@@ -56,6 +72,7 @@ class TradingBot:
             self.logger.error(f"Failed to update balance: {e}")
             raise
 
+    @handle_errors
     def process_trade(self, price: float) -> None:
         print(price)
         asset_value = price * self.quantity
@@ -75,6 +92,7 @@ class TradingBot:
             self.update_balance()
             self.chat_bot.notify(price, self.cash, self.quantity, trade_volume)
 
+    @handle_errors
     def buy(self, price: float, quantity: float) -> bool:
         self.logger.info(f"Buy {quantity} at {price} (₩{price * quantity}).")
 
@@ -87,6 +105,7 @@ class TradingBot:
             self.logger.error(f"Failed to place buy order: {e}")
             return False
 
+    @handle_errors
     def sell(self, price: float, quantity: float) -> bool:
         self.logger.info(f"Sell {quantity} at {price} (₩{price * quantity}).")
 
@@ -99,6 +118,7 @@ class TradingBot:
             self.logger.error(f"Failed to place sell order: {e}")
             return False
 
+    @handle_errors
     def wait(self, uuid: str) -> bool:
         closed = self.broker.wait_order_close(uuid)
         if closed:
