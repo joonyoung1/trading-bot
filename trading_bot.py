@@ -7,7 +7,7 @@ from multiprocessing import Queue
 
 
 class TradingBot:
-    SENTINEL = object()
+    SENTINEL = "STOP"
 
     def __init__(
         self,
@@ -26,11 +26,6 @@ class TradingBot:
         self.cash: float = 0
         self.quantity: float = 0
 
-        self.update_balance()
-        self.broker.cancel_orders(self.ticker)
-        self.logger.info("Trading bot initialized.")
-        self.chat_bot.notify(self.broker.get_current_price(self.ticker), self.cash, self.quantity)
-
     @staticmethod
     def handle_errors(method):
         @wraps(method)
@@ -42,24 +37,36 @@ class TradingBot:
                 raise
         return wrapper
 
-    @handle_errors
     def start(self) -> None:
-        self.logger.info("Trading bot started.")
+        self.logger.info("Starting TradingBot...")
+
+        self.update_balance()
+        self.broker.cancel_orders(self.ticker)
+        self.logger.info("TradingBot initialized.")
+
+        self.chat_bot.notify(self.broker.get_current_price(self.ticker), self.cash, self.quantity)
+        self.logger.info("TradingBot started.")
+
+        self.run()
+
+    @handle_errors
+    def run(self) -> None:
         last_price = -1
 
         while True:
             data = self.queue.get()
-            if data is self.SENTINEL:
+            if data == self.SENTINEL:
                 break
-
+            
             price = data["trade_price"]
             if last_price != price:
                 last_price = price
                 self.process_trade(price)
+        self.logger.info("TradingBot terminated.")
 
     @handle_errors
     def terminate(self) -> None:
-        self.logger.info("Trading bot terminated.")
+        self.logger.info("Terminating TradingBot...")
         self.queue.put(self.SENTINEL)
 
     @handle_errors
@@ -74,7 +81,6 @@ class TradingBot:
 
     @handle_errors
     def process_trade(self, price: float) -> None:
-        print(price)
         asset_value = price * self.quantity
         trade_volume = (self.cash - asset_value) / 2
         volume = abs(trade_volume)

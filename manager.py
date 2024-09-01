@@ -1,4 +1,5 @@
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -7,6 +8,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from multiprocessing import Queue, Process
 from pyupbit import WebSocketClient
+import signal
 
 from broker import Broker
 from trading_bot import TradingBot
@@ -60,12 +62,26 @@ class Manager:
         return logger
 
     def start(self) -> None:
+        self.logger.info("Starting PriceFetcher...")
         self.price_fetcher.start()
+        self.logger.info("PriceFetcher started.")
+
+        signal.signal(signal.SIGINT, self.terminate)
+        signal.signal(signal.SIGTERM, self.terminate)
+
         self.trading_bot.start()
-        
-    def terminate(self) -> None:
+
+    def terminate(self, signum, frame) -> None:
+        self.logger.info("Termination signal received. Cleaning up...")
+
+        self.logger.info("Terminating PriceFetcher...")
         self.price_fetcher.terminate()
+        self.price_fetcher.join()
+        self.logger.info("PriceFetcher terminated.")
+
         self.trading_bot.terminate()
+
+        self.price_fetcher.join()
 
 
 if __name__ == "__main__":
@@ -74,5 +90,4 @@ if __name__ == "__main__":
     try:
         manager.start()
     except Exception as e:
-        print("manager error handler")
         manager.terminate()
