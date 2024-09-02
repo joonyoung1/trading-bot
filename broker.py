@@ -11,7 +11,10 @@ class Broker:
         return pyupbit.get_current_price(ticker)
 
     def get_balance(self, ticker: str) -> float:
-        return self.upbit.get_balance(ticker)
+        balance = self.upbit.get_balance(ticker)
+        if balance is None:
+            raise ValueError("Balance is `None` instead of a float")
+        return balance
 
     def buy_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
         return self.upbit.buy_limit_order(ticker, price, quantity)
@@ -33,7 +36,13 @@ class Broker:
         return False
 
     def cancel_orders(self, ticker: str) -> None:
-        orders = self.upbit.get_order(ticker)
-        for order in orders:
+        response = self.upbit.get_order(ticker)
+        if isinstance(response, dict) and "error" in response:
+            error = response["error"]
+            error_name = error.get("name", "Unknown error")
+            error_message = error.get("message", "No error message provided")
+            raise ConnectionError(f"Error: {error_name} - {error_message}")
+
+        for order in response:
             uuid = order["uuid"]
             self.upbit.cancel_order(uuid)

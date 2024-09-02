@@ -90,4 +90,4 @@ if __name__ == "__main__":
     try:
         manager.start()
     except Exception as e:
-        manager.terminate()
+        manager.terminate(None, None)

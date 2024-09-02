@@ -37,6 +37,7 @@ class TradingBot:
                 raise
         return wrapper
 
+    @handle_errors
     def start(self) -> None:
         self.logger.info("Starting TradingBot...")
 
