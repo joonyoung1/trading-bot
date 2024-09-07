@@ -20,7 +20,16 @@ class Tracker:
         
         if not os.path.exists(self.plot_folder):
             os.makedirs(self.plot_folder)
+        
+    def get_initial_price(self) -> float | None:
+        with open(self.history_file, "r") as file:
+            reader = csv.reader(file)
+            headers = next(reader)
+            idx = headers.index("price")
 
+            row = next(reader, None)
+            return None if row is None else float(row[idx])
+        
     def record_history(self, price, balance):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(self.history_file, "a", newline="") as file:
