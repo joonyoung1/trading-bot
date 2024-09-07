@@ -88,7 +88,7 @@ class TradingBot:
         try:
             self.cash = self.broker.get_balance("KRW")
             self.quantity = self.broker.get_balance(self.ticker)
-            self.logger.info(f"Cash: ₩{self.cash}, Assets: {self.quantity} units.")
+            self.logger.info(f"Cash: ₩{self.cash:.2f}, Assets: {self.quantity:.2f} units.")
         except Exception as e:
             self.logger.error(f"Failed to update balance: {e}")
             raise
