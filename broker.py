@@ -24,7 +24,7 @@ class Broker:
 
     def check_order_closed(self, uuid: str) -> bool:
         order = self.upbit.get_order(uuid)
-        return order["state"] == "done"
+        return order["state"] == "done" or order["state"] == "cancel"
             
     def cancel_orders(self, ticker: str) -> None:
         response = self.upbit.get_order(ticker)

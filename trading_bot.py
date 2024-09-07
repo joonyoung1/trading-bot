@@ -115,13 +115,13 @@ class TradingBot:
         elif volume < 0:
             ret = self.sell(price, -volume / price)
 
+        self.update_balance()
         if ret:
-            self.update_balance()
             self.chat_bot.notify(price, self.cash, self.quantity, volume)
 
     @handle_errors
     def buy(self, price: float, quantity: float) -> bool:
-        self.logger.info(f"Buy {quantity} at {price} (₩{price * quantity}).")
+        self.logger.info(f"Buy {quantity:.2f} at {price} (₩{price * quantity:.2f}).")
 
         try:
             order = self.broker.buy_limit_order(self.ticker, price, quantity)
@@ -134,7 +134,7 @@ class TradingBot:
 
     @handle_errors
     def sell(self, price: float, quantity: float) -> bool:
-        self.logger.info(f"Sell {quantity} at {price} (₩{price * quantity}).")
+        self.logger.info(f"Sell {quantity:.2f} at {price} (₩{price * quantity:.2f}).")
 
         try:
             order = self.broker.sell_limit_order(self.ticker, price, quantity)
@@ -146,7 +146,7 @@ class TradingBot:
             return False
 
     @handle_errors
-    def wait(self, uuid: str, timeout: float = 30, interval: float = 3) -> bool:
+    def wait(self, uuid: str, timeout: float = 180, interval: float = 10) -> bool:
         end_time = time.time() + timeout
 
         closed = False
@@ -164,10 +164,10 @@ class TradingBot:
             )
             self.broker.cancel_orders(self.ticker)
             self.logger.info(f"All open orders have been canceled.")
-        
+
         self.empty_queue()
         return closed
-    
+
     @handle_errors
     def empty_queue(self) -> None:
         while not self.queue.empty():
