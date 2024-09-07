@@ -1,5 +1,6 @@
 from functools import wraps
 from math import sqrt
+import time
 
 from broker import Broker
 from logging import Logger
@@ -32,6 +33,7 @@ class TradingBot:
             if initial_price is None
             else initial_price
         )
+        self.running: bool = False
 
     @staticmethod
     def handle_errors(method):
@@ -49,6 +51,7 @@ class TradingBot:
     def start(self) -> None:
         self.logger.info("Starting TradingBot...")
 
+        self.running = True
         self.update_balance()
         self.broker.cancel_orders(self.ticker)
         self.logger.info("TradingBot initialized.")
@@ -143,8 +146,16 @@ class TradingBot:
             return False
 
     @handle_errors
-    def wait(self, uuid: str) -> bool:
-        closed = self.broker.wait_order_close(uuid)
+    def wait(self, uuid: str, timeout: float = 30, interval: float = 3) -> bool:
+        end_time = time.time() + timeout
+
+        closed = False
+        while time.time() < end_time and self.running:
+            if self.broker.check_order_closed(uuid):
+                closed = True
+                break
+            time.sleep(interval)
+
         if closed:
             self.logger.info(f"Order [{uuid}] has been closed.")
         else:

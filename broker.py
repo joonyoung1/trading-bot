@@ -22,19 +22,10 @@ class Broker:
     def sell_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
         return self.upbit.sell_limit_order(ticker, price, quantity)
 
-    def wait_order_close(
-        self, uuid: str, timeout: float = 300, interval: float = 5
-    ) -> bool:
-        end_time = time.time() + timeout
-
-        while time.time() < end_time:
-            order = self.upbit.get_order(uuid)
-            if order["state"] == "done":
-                return True
-            time.sleep(interval)
-        
-        return False
-
+    def check_order_closed(self, uuid: str) -> bool:
+        order = self.upbit.get_order(uuid)
+        return order["state"] == "done"
+            
     def cancel_orders(self, ticker: str) -> None:
         response = self.upbit.get_order(ticker)
         if isinstance(response, dict) and "error" in response:
