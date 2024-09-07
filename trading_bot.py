@@ -164,5 +164,14 @@ class TradingBot:
             )
             self.broker.cancel_orders(self.ticker)
             self.logger.info(f"All open orders have been canceled.")
-
+        
+        self.empty_queue()
         return closed
+    
+    @handle_errors
+    def empty_queue(self) -> None:
+        while not self.queue.empty():
+            data = self.queue.get_nowait()
+            if data == self.SENTINEL:
+                self.queue.put(self.SENTINEL)
+                break
