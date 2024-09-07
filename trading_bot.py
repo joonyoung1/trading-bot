@@ -1,4 +1,5 @@
 from functools import wraps
+from math import sqrt
 
 from broker import Broker
 from logging import Logger
@@ -16,6 +17,7 @@ class TradingBot:
         broker: Broker,
         chat_bot: ChatBot,
         logger: Logger,
+        initial_price: float | None = None,
     ) -> None:
         self.ticker: str = ticker
         self.queue: Queue = queue
@@ -25,6 +27,11 @@ class TradingBot:
 
         self.cash: float = 0
         self.quantity: float = 0
+        self.initial_price: float = (
+            self.broker.get_current_price(self.ticker)
+            if initial_price is None
+            else initial_price
+        )
 
     @staticmethod
     def handle_errors(method):
@@ -35,6 +42,7 @@ class TradingBot:
             except Exception as e:
                 self.logger.error(f"An error occurred: {e}", exc_info=True)
                 raise
+
         return wrapper
 
     @handle_errors
@@ -45,7 +53,9 @@ class TradingBot:
         self.broker.cancel_orders(self.ticker)
         self.logger.info("TradingBot initialized.")
 
-        self.chat_bot.notify(self.broker.get_current_price(self.ticker), self.cash, self.quantity)
+        self.chat_bot.notify(
+            self.broker.get_current_price(self.ticker), self.cash, self.quantity
+        )
         self.logger.info("TradingBot started.")
 
         self.run()
@@ -58,7 +68,7 @@ class TradingBot:
             data = self.queue.get()
             if data == self.SENTINEL:
                 break
-            
+
             price = data["trade_price"]
             if last_price != price:
                 last_price = price
@@ -82,22 +92,29 @@ class TradingBot:
 
     @handle_errors
     def process_trade(self, price: float) -> None:
-        asset_value = price * self.quantity
-        trade_volume = (self.cash - asset_value) / 2
-        volume = abs(trade_volume)
+        delta = price / self.initial_price - 1
+        if delta == 0:
+            ratio = 0.5
+        elif delta < 0:
+            ratio = 0.5 - 0.5 * sqrt(abs(delta))
+        else:
+            ratio = 0.5 + 0.5 * sqrt(delta)
 
-        if volume < 5001:
+        value = price * self.quantity
+        total_value = self.cash + value
+
+        volume = self.cash - total_value * ratio
+        if abs(volume) < max(5001, total_value * 0.01):
             return
 
-        ratio = asset_value / asset_value + self.cash
-        if ratio < 0.5:
+        if volume > 0:
             ret = self.buy(price, volume / price)
-        elif ratio > 0.505:
-            ret = self.sell(price, volume / price)
+        elif volume < 0:
+            ret = self.sell(price, -volume / price)
 
         if ret:
             self.update_balance()
-            self.chat_bot.notify(price, self.cash, self.quantity, trade_volume)
+            self.chat_bot.notify(price, self.cash, self.quantity, volume)
 
     @handle_errors
     def buy(self, price: float, quantity: float) -> bool:

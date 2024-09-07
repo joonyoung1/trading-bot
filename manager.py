@@ -41,12 +41,19 @@ class Manager:
         self.logger = self.init_logger()
         self.brocker = Broker(ACCESS, SECRET)
         self.tracker = Tracker(history_file, plot_folder)
+        initial_price = self.tracker.get_initial_price()
+
         self.chat_bot = ChatBot(TOKEN, CHAT_ID, self.tracker)
         self.trading_bot = TradingBot(
-            TICKER, self.queue, self.brocker, self.chat_bot, self.logger
+            TICKER,
+            self.queue,
+            self.brocker,
+            self.chat_bot,
+            self.logger,
+            initial_price=initial_price,
         )
 
-    def init_logger(self) -> None:
+    def init_logger(self) -> logging.Logger:
         logger = logging.getLogger("logger")
         logger.setLevel(logging.DEBUG)
 
