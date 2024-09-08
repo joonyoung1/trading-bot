@@ -17,19 +17,34 @@ class Tracker:
                 writer = csv.writer(file)
                 if file.tell() == 0:
                     writer.writerow(["timestamp", "price", "balance"])
-        
+
         if not os.path.exists(self.plot_folder):
             os.makedirs(self.plot_folder)
-        
-    def get_initial_price(self) -> float | None:
+
+    def get_price_data(self) -> tuple[float, float]:
         with open(self.history_file, "r") as file:
             reader = csv.reader(file)
-            headers = next(reader)
-            idx = headers.index("price")
+            header = next(reader)
+            price_idx = header.index("price")
+            timestamp_idx = header.index("timestamp")
 
-            row = next(reader, None)
-            return None if row is None else float(row[idx])
-        
+            line = next(reader, None)
+            first_line = line
+            initial_price = None if line is None else float(line[price_idx])
+
+            if initial_price is None:
+                return None, None
+
+            for line in reader:
+                pass
+
+            last_trade_price = (
+                None
+                if first_line[timestamp_idx] == line[timestamp_idx]
+                else float(line[price_idx])
+            )
+            return initial_price, last_trade_price
+
     def record_history(self, price, balance):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(self.history_file, "a", newline="") as file:

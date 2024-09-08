@@ -19,6 +19,7 @@ class TradingBot:
         chat_bot: ChatBot,
         logger: Logger,
         initial_price: float | None = None,
+        last_trade_price: float | None = None,
     ) -> None:
         self.ticker: str = ticker
         self.queue: Queue = queue
@@ -28,12 +29,14 @@ class TradingBot:
 
         self.cash: float = 0
         self.quantity: float = 0
-        self.initial_price: float = (
-            self.broker.get_current_price(self.ticker)
-            if initial_price is None
-            else initial_price
-        )
         self.running: bool = False
+
+        self.initial_price: float = (
+            initial_price
+            if initial_price is not None
+            else self.broker.get_current_price()
+        )
+        self.last_trade_price: float | None = last_trade_price
 
     @staticmethod
     def handle_errors(method):
@@ -65,16 +68,16 @@ class TradingBot:
 
     @handle_errors
     def run(self) -> None:
-        last_price = -1
-
         while True:
             data = self.queue.get()
             if data == self.SENTINEL:
                 break
 
             price = data["trade_price"]
-            if last_price != price:
-                last_price = price
+            if (
+                self.last_trade_price is not None
+                and abs(self.last_trade_price / price - 1) > 0.002
+            ):
                 self.process_trade(price)
         self.logger.info("TradingBot terminated.")
 
@@ -88,7 +91,9 @@ class TradingBot:
         try:
             self.cash = self.broker.get_balance("KRW")
             self.quantity = self.broker.get_balance(self.ticker)
-            self.logger.info(f"Cash: ₩{self.cash:.2f}, Assets: {self.quantity:.2f} units.")
+            self.logger.info(
+                f"Cash: ₩{self.cash:.2f}, Assets: {self.quantity:.2f} units."
+            )
         except Exception as e:
             self.logger.error(f"Failed to update balance: {e}")
             raise

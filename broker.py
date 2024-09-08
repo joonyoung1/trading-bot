@@ -1,6 +1,5 @@
 import pyupbit
 from pyupbit import Upbit
-import time
 
 
 class Broker:
