@@ -122,6 +122,7 @@ class TradingBot:
 
         self.update_balance()
         if ret:
+            self.last_trade_price = price
             self.chat_bot.notify(price, self.cash, self.quantity, volume)
 
     @handle_errors
