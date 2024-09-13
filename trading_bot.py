@@ -41,11 +41,12 @@ class TradingBot:
     @staticmethod
     def handle_errors(method):
         @wraps(method)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: TradingBot, *args, **kwargs):
             try:
                 return method(self, *args, **kwargs)
             except Exception as e:
                 self.logger.error(f"An error occurred: {e}", exc_info=True)
+                self.chat_bot.alert(f"An error occurred: {e}")
                 raise
 
         return wrapper
