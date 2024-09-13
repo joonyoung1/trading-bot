@@ -72,8 +72,13 @@ class TradingBot:
             data = self.queue.get()
             if data == self.SENTINEL:
                 break
-
-            price = data["trade_price"]
+            
+            try:
+                price = data["trade_price"]
+            except:
+                self.logger.error(f"Failed to fetch price from data: {data}")
+                raise
+            
             if (
                 self.last_trade_price is not None
                 and abs(self.last_trade_price / price - 1) > 0.002
