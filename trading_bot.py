@@ -41,11 +41,12 @@ class TradingBot:
     @staticmethod
     def handle_errors(method):
         @wraps(method)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: TradingBot, *args, **kwargs):
             try:
                 return method(self, *args, **kwargs)
             except Exception as e:
                 self.logger.error(f"An error occurred: {e}", exc_info=True)
+                self.chat_bot.alert(f"An error occurred: {e}")
                 raise
 
         return wrapper
@@ -72,8 +73,13 @@ class TradingBot:
             data = self.queue.get()
             if data == self.SENTINEL:
                 break
-
-            price = data["trade_price"]
+            
+            try:
+                price = data["trade_price"]
+            except:
+                self.logger.error(f"Failed to fetch price from data: {data}")
+                raise
+            
             if (
                 self.last_trade_price is not None
                 and abs(self.last_trade_price / price - 1) > 0.002

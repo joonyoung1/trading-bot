@@ -31,3 +31,6 @@ class ChatBot:
 
         file_path = self.tracker.generate_history_graph()
         self.telegram.send_photo(file_path)
+
+    def alert(self, message: str) -> None:
+        self.telegram.send_message(message)
