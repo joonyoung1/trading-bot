@@ -1,5 +1,4 @@
 from functools import wraps
-from math import sqrt
 import time
 
 from broker import Broker
@@ -41,7 +40,7 @@ class TradingBot:
     @staticmethod
     def handle_errors(method):
         @wraps(method)
-        def wrapper(self: TradingBot, *args, **kwargs):
+        def wrapper(self: "TradingBot", *args, **kwargs):
             try:
                 return method(self, *args, **kwargs)
             except Exception as e:
@@ -73,13 +72,13 @@ class TradingBot:
             data = self.queue.get()
             if data == self.SENTINEL:
                 break
-            
+
             try:
                 price = data["trade_price"]
             except:
                 self.logger.error(f"Failed to fetch price from data: {data}")
                 raise
-            
+
             if (
                 self.last_trade_price is not None
                 and abs(self.last_trade_price / price - 1) > 0.002
