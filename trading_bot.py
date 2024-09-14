@@ -1,4 +1,6 @@
 from functools import wraps
+from math import sqrt
+import time
 
 from broker import Broker
 from logging import Logger
@@ -16,6 +18,8 @@ class TradingBot:
         broker: Broker,
         chat_bot: ChatBot,
         logger: Logger,
+        initial_price: float | None = None,
+        last_trade_price: float | None = None,
     ) -> None:
         self.ticker: str = ticker
         self.queue: Queue = queue
@@ -25,43 +29,61 @@ class TradingBot:
 
         self.cash: float = 0
         self.quantity: float = 0
+        self.running: bool = False
+
+        self.initial_price: float = (
+            initial_price
+            if initial_price is not None
+            else self.broker.get_current_price()
+        )
+        self.last_trade_price: float | None = last_trade_price
 
     @staticmethod
     def handle_errors(method):
         @wraps(method)
-        def wrapper(self, *args, **kwargs):
+        def wrapper(self: TradingBot, *args, **kwargs):
             try:
                 return method(self, *args, **kwargs)
             except Exception as e:
                 self.logger.error(f"An error occurred: {e}", exc_info=True)
+                self.chat_bot.alert(f"An error occurred: {e}")
                 raise
+
         return wrapper
 
     @handle_errors
     def start(self) -> None:
         self.logger.info("Starting TradingBot...")
 
+        self.running = True
         self.update_balance()
         self.broker.cancel_orders(self.ticker)
         self.logger.info("TradingBot initialized.")
 
-        self.chat_bot.notify(self.broker.get_current_price(self.ticker), self.cash, self.quantity)
+        self.chat_bot.notify(
+            self.broker.get_current_price(self.ticker), self.cash, self.quantity
+        )
         self.logger.info("TradingBot started.")
 
         self.run()
 
     @handle_errors
     def run(self) -> None:
-        last_price = -1
-
         while True:
             data = self.queue.get()
             if data == self.SENTINEL:
                 break
             
-            price = data["trade_price"]
-            if last_price != price:
-                last_price = price
+            try:
+                price = data["trade_price"]
+            except:
+                self.logger.error(f"Failed to fetch price from data: {data}")
+                raise
+            
+            if (
+                self.last_trade_price is not None
+                and abs(self.last_trade_price / price - 1) > 0.002
+            ):
                 self.process_trade(price)
         self.logger.info("TradingBot terminated.")
 
@@ -75,33 +97,43 @@ class TradingBot:
         try:
             self.cash = self.broker.get_balance("KRW")
             self.quantity = self.broker.get_balance(self.ticker)
-            self.logger.info(f"Cash: ₩{self.cash}, Assets: {self.quantity} units.")
+            self.logger.info(
+                f"Cash: ₩{self.cash:.2f}, Assets: {self.quantity:.2f} units."
+            )
         except Exception as e:
             self.logger.error(f"Failed to update balance: {e}")
             raise
 
     @handle_errors
     def process_trade(self, price: float) -> None:
-        asset_value = price * self.quantity
-        trade_volume = (self.cash - asset_value) / 2
-        volume = abs(trade_volume)
+        delta = price / self.initial_price - 1
+        if delta == 0:
+            ratio = 0.5
+        elif delta < 0:
+            ratio = 0.5 - 0.5 * sqrt(abs(delta))
+        else:
+            ratio = 0.5 + 0.5 * sqrt(delta)
 
-        if volume < 5001:
+        value = price * self.quantity
+        total_value = self.cash + value
+
+        volume = self.cash - total_value * ratio
+        if abs(volume) < max(5001, total_value * 0.01):
             return
 
-        ratio = asset_value / asset_value + self.cash
-        if ratio < 0.5:
+        if volume > 0:
             ret = self.buy(price, volume / price)
-        elif ratio > 0.505:
-            ret = self.sell(price, volume / price)
+        elif volume < 0:
+            ret = self.sell(price, -volume / price)
 
+        self.update_balance()
         if ret:
-            self.update_balance()
-            self.chat_bot.notify(price, self.cash, self.quantity, trade_volume)
+            self.last_trade_price = price
+            self.chat_bot.notify(price, self.cash, self.quantity, volume)
 
     @handle_errors
     def buy(self, price: float, quantity: float) -> bool:
-        self.logger.info(f"Buy {quantity} at {price} (₩{price * quantity}).")
+        self.logger.info(f"Buy {quantity:.2f} at {price} (₩{price * quantity:.2f}).")
 
         try:
             order = self.broker.buy_limit_order(self.ticker, price, quantity)
@@ -114,7 +146,7 @@ class TradingBot:
 
     @handle_errors
     def sell(self, price: float, quantity: float) -> bool:
-        self.logger.info(f"Sell {quantity} at {price} (₩{price * quantity}).")
+        self.logger.info(f"Sell {quantity:.2f} at {price} (₩{price * quantity:.2f}).")
 
         try:
             order = self.broker.sell_limit_order(self.ticker, price, quantity)
@@ -126,8 +158,16 @@ class TradingBot:
             return False
 
     @handle_errors
-    def wait(self, uuid: str) -> bool:
-        closed = self.broker.wait_order_close(uuid)
+    def wait(self, uuid: str, timeout: float = 180, interval: float = 10) -> bool:
+        end_time = time.time() + timeout
+
+        closed = False
+        while time.time() < end_time and self.running:
+            if self.broker.check_order_closed(uuid):
+                closed = True
+                break
+            time.sleep(interval)
+
         if closed:
             self.logger.info(f"Order [{uuid}] has been closed.")
         else:
@@ -137,4 +177,13 @@ class TradingBot:
             self.broker.cancel_orders(self.ticker)
             self.logger.info(f"All open orders have been canceled.")
 
+        self.empty_queue()
         return closed
+
+    @handle_errors
+    def empty_queue(self) -> None:
+        while not self.queue.empty():
+            data = self.queue.get_nowait()
+            if data == self.SENTINEL:
+                self.queue.put(self.SENTINEL)
+                break
