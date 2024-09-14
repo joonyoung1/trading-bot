@@ -110,15 +110,15 @@ class TradingBot:
         if delta == 0:
             ratio = 0.5
         elif delta < 0:
-            ratio = 0.5 - 0.5 * sqrt(abs(delta))
+            ratio = 0.5 * delta**2 + delta + 0.5
         else:
-            ratio = 0.5 + 0.5 * sqrt(delta)
+            ratio = -0.5 * 2**-delta + 1
 
         value = price * self.quantity
         total_value = self.cash + value
 
         volume = self.cash - total_value * ratio
-        if abs(volume) < max(5001, total_value * 0.01):
+        if abs(volume) < max(5001, total_value * 0.005):
             return
 
         if volume > 0:
