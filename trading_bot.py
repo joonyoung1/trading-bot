@@ -72,6 +72,8 @@ class TradingBot:
             data = self.queue.get()
             if data == self.SENTINEL:
                 break
+            elif data == "ConnectionClosedError":
+                continue
 
             try:
                 price = data["trade_price"]
