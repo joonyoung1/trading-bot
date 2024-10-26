@@ -33,7 +33,7 @@ class TradingBot:
         self.initial_price: float = (
             initial_price
             if initial_price is not None
-            else self.broker.get_current_price()
+            else self.broker.get_current_price(self.ticker)
         )
         self.last_trade_price: float | None = last_trade_price
 
