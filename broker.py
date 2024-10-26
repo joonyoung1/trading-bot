@@ -5,7 +5,7 @@ from pyupbit import Upbit
 class Broker:
     def __init__(self, access: str, secret: str) -> None:
         self.upbit: Upbit = Upbit(access, secret)
-    
+
     def get_current_price(self, ticker: str) -> float:
         return pyupbit.get_current_price(ticker)
 
@@ -24,7 +24,7 @@ class Broker:
     def check_order_closed(self, uuid: str) -> bool:
         order = self.upbit.get_order(uuid)
         return order["state"] == "done" or order["state"] == "cancel"
-            
+
     def cancel_orders(self, ticker: str) -> None:
         response = self.upbit.get_order(ticker)
         if isinstance(response, dict) and "error" in response:

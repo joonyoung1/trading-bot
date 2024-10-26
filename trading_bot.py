@@ -81,7 +81,7 @@ class TradingBot:
                 self.logger.error(f"Failed to fetch price from data: {data}")
                 raise
 
-            if (
+            if self.last_trade_price is None or (
                 self.last_trade_price is not None
                 and abs(self.last_trade_price / price - 1) > 0.002
             ):
