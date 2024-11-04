@@ -1,5 +1,4 @@
 from functools import wraps
-from math import sqrt
 import time
 
 from broker import Broker
@@ -34,14 +33,14 @@ class TradingBot:
         self.initial_price: float = (
             initial_price
             if initial_price is not None
-            else self.broker.get_current_price()
+            else self.broker.get_current_price(self.ticker)
         )
         self.last_trade_price: float | None = last_trade_price
 
     @staticmethod
     def handle_errors(method):
         @wraps(method)
-        def wrapper(self: TradingBot, *args, **kwargs):
+        def wrapper(self: "TradingBot", *args, **kwargs):
             try:
                 return method(self, *args, **kwargs)
             except Exception as e:
@@ -73,14 +72,16 @@ class TradingBot:
             data = self.queue.get()
             if data == self.SENTINEL:
                 break
-            
+            elif data == "ConnectionClosedError":
+                continue
+
             try:
                 price = data["trade_price"]
             except:
                 self.logger.error(f"Failed to fetch price from data: {data}")
                 raise
-            
-            if (
+
+            if self.last_trade_price is None or (
                 self.last_trade_price is not None
                 and abs(self.last_trade_price / price - 1) > 0.002
             ):
@@ -110,15 +111,15 @@ class TradingBot:
         if delta == 0:
             ratio = 0.5
         elif delta < 0:
-            ratio = 0.5 - 0.5 * sqrt(abs(delta))
+            ratio = 0.5 * delta**2 + delta + 0.5
         else:
-            ratio = 0.5 + 0.5 * sqrt(delta)
+            ratio = -0.5 * 2**-delta + 1
 
         value = price * self.quantity
         total_value = self.cash + value
 
         volume = self.cash - total_value * ratio
-        if abs(volume) < max(5001, total_value * 0.01):
+        if abs(volume) < max(5001, total_value * 0.005):
             return
 
         if volume > 0:

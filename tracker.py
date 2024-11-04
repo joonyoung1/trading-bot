@@ -64,8 +64,8 @@ class Tracker:
         df["cumulative_price"] = (df["price"] - initial_price) / initial_price * 100
         df.set_index("timestamp", inplace=True)
 
-        df["cumulative_return"].plot(label="Cumulative Return", color="red")
-        df["cumulative_price"].plot(label="Cumulative Price", color="blue")
+        df["cumulative_price"].plot(label="Cumulative Price", color="red", linestyle="-")
+        df["cumulative_return"].plot(label="Cumulative Return", color="orange", linestyle="--")
 
         plt.xlabel("Date")
         plt.ylabel("Percentage (%)")
