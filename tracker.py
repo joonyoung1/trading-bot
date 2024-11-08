@@ -1,6 +1,7 @@
 import os
 import csv
 from datetime import datetime
+import pytz
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -9,6 +10,7 @@ class Tracker:
     def __init__(
         self, history_file: str = "history.csv", plot_folder: str = "./plots"
     ) -> None:
+        self.kst = pytz.timezone("Asia/Seoul")
         self.history_file: str = history_file
         self.plot_folder: str = plot_folder
 
@@ -44,7 +46,7 @@ class Tracker:
             return last_trade_price
 
     def record_history(self, price, balance):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now(self.kst).strftime("%Y-%m-%d %H:%M:%S")
         with open(self.history_file, "a", newline="") as file:
             writer = csv.writer(file)
             writer.writerow([timestamp, price, balance])
