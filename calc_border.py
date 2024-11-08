@@ -15,6 +15,24 @@ def calc_volume(initial_price, quantity, cash, current_price):
     return cash - proper_cash
 
 
+def calc_border(initial_price, pivot, quantity, cash):
+    lower_price = pivot
+    while True:
+        lower_price = ((lower_price * 10) - 1) / 10
+        volume = calc_volume(initial_price, quantity, cash, lower_price)
+        if abs(volume) > 5000:
+            break
+
+    upper_price = pivot
+    while True:
+        upper_price = ((upper_price * 10) + 1) / 10
+        volume = calc_volume(initial_price, quantity, cash, upper_price)
+        if abs(volume) > 5000:
+            break
+
+    return lower_price, upper_price
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 5:
         print("Usage: python script_name.py <initial_price> <pivot> <quantity> <cash>")
@@ -25,20 +43,5 @@ if __name__ == "__main__":
     quantity = float(sys.argv[3])
     cash = float(sys.argv[4])
 
-    lower_price = pivot
-    while True:
-        lower_price = ((lower_price * 10) - 1) / 10
-        volume = calc_volume(initial_price, quantity, cash, lower_price)
-        if abs(volume) > 5000:
-            break
-
-    print(f"lower_price : {lower_price}")
-
-    upper_price = pivot
-    while True:
-        upper_price = ((upper_price * 10) + 1) / 10
-        volume = calc_volume(initial_price, quantity, cash, upper_price)
-        if abs(volume) > 5000:
-            break
-
-    print(f"upper_price : {upper_price}")
+    print(calc_volume(initial_price, quantity, cash, pivot))
+    print(calc_border(initial_price, pivot, quantity, cash))
