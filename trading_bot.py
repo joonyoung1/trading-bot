@@ -119,7 +119,6 @@ class TradingBot:
         total_value = self.cash + value
 
         volume = self.cash - total_value * ratio
-        print(price, volume)
         if abs(volume) < max(5001, total_value * 0.005):
             return
 
