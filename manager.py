@@ -27,6 +27,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 class Manager:
     def __init__(
         self,
+        pivot_price: float | None = None,
         log_file: str = "logfile.log",
         history_file: str = "history.csv",
         plot_folder: str = "./plots",
@@ -43,15 +44,15 @@ class Manager:
         self.tracker = Tracker(history_file, plot_folder)
 
         self.chat_bot = ChatBot(TOKEN, CHAT_ID, self.tracker)
-        initial_price, last_trade_price = self.tracker.get_price_data()
+        last_trade_price = self.tracker.get_last_data()
         self.trading_bot = TradingBot(
             TICKER,
             self.queue,
             self.brocker,
             self.chat_bot,
             self.logger,
-            initial_price=initial_price,
-            last_trade_price=last_trade_price
+            pivot_price=pivot_price,
+            last_trade_price=last_trade_price,
         )
 
     def init_logger(self) -> logging.Logger:
@@ -93,8 +94,16 @@ class Manager:
 
 
 if __name__ == "__main__":
-    manager = Manager()
-
+    args = sys.argv[1:]
+    try:
+        if args:
+            pivot_price = float(args[0])
+        else:
+            pivot_price = None
+    except ValueError:
+        raise ValueError("Usage: manager.py <initial_price>")
+    
+    manager = Manager(pivot_price=pivot_price)
     try:
         manager.start()
     except Exception as e:
