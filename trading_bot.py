@@ -17,7 +17,7 @@ class TradingBot:
         broker: Broker,
         chat_bot: ChatBot,
         logger: Logger,
-        initial_price: float | None = None,
+        pivot_price: float | None = None,
         last_trade_price: float | None = None,
     ) -> None:
         self.ticker: str = ticker
@@ -30,9 +30,9 @@ class TradingBot:
         self.quantity: float = 0
         self.running: bool = False
 
-        self.initial_price: float = (
-            initial_price
-            if initial_price is not None
+        self.pivot_price: float = (
+            pivot_price
+            if pivot_price is not None
             else self.broker.get_current_price(self.ticker)
         )
         self.last_trade_price: float | None = last_trade_price
@@ -107,7 +107,7 @@ class TradingBot:
 
     @handle_errors
     def process_trade(self, price: float) -> None:
-        delta = price / self.initial_price - 1
+        delta = price / self.pivot_price - 1
         if delta == 0:
             ratio = 0.5
         elif delta < 0:
@@ -119,6 +119,7 @@ class TradingBot:
         total_value = self.cash + value
 
         volume = self.cash - total_value * ratio
+        print(price, volume)
         if abs(volume) < max(5001, total_value * 0.005):
             return
 
