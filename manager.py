@@ -22,12 +22,12 @@ TICKER = os.getenv("TICKER")
 
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
+PIVOT = os.getenv("PIVOT")
 
 
 class Manager:
     def __init__(
         self,
-        pivot_price: float | None = None,
         log_file: str = "logfile.log",
         history_file: str = "history.csv",
         plot_folder: str = "./plots",
@@ -51,7 +51,7 @@ class Manager:
             self.brocker,
             self.chat_bot,
             self.logger,
-            pivot_price=pivot_price,
+            pivot_price=PIVOT,
             last_trade_price=last_trade_price,
         )
 
@@ -94,16 +94,7 @@ class Manager:
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    try:
-        if args:
-            pivot_price = float(args[0])
-        else:
-            pivot_price = None
-    except ValueError:
-        raise ValueError("Usage: manager.py <initial_price>")
-    
-    manager = Manager(pivot_price=pivot_price)
+    manager = Manager()
     try:
         manager.start()
     except Exception as e:
