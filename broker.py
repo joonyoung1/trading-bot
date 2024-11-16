@@ -7,7 +7,7 @@ class Broker:
         self.upbit: Upbit = Upbit(access, secret)
 
     def get_current_price(self, ticker: str) -> float:
-        return pyupbit.get_current_price(ticker)
+        return float(pyupbit.get_current_price(ticker))
 
     def get_balance(self, ticker: str) -> float:
         balance = self.upbit.get_balance(ticker)
