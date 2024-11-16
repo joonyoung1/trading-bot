@@ -34,11 +34,6 @@ class Manager:
     ) -> None:
         self.log_file: str = log_file
 
-        self.queue = Queue()
-        self.price_fetcher: Process = Process(
-            target=WebSocketClient, args=("ticker", [TICKER], self.queue), daemon=True
-        )
-
         self.logger = self.init_logger()
         self.brocker = Broker(ACCESS, SECRET)
         self.tracker = Tracker(history_file, plot_folder)
@@ -47,7 +42,6 @@ class Manager:
         last_trade_price = self.tracker.get_last_data()
         self.trading_bot = TradingBot(
             TICKER,
-            self.queue,
             self.brocker,
             self.chat_bot,
             self.logger,
@@ -71,10 +65,6 @@ class Manager:
         return logger
 
     def start(self) -> None:
-        self.logger.info("Starting PriceFetcher...")
-        self.price_fetcher.start()
-        self.logger.info("PriceFetcher started.")
-
         signal.signal(signal.SIGINT, self.terminate)
         signal.signal(signal.SIGTERM, self.terminate)
 
@@ -82,15 +72,7 @@ class Manager:
 
     def terminate(self, signum, frame) -> None:
         self.logger.info("Termination signal received. Cleaning up...")
-
-        self.logger.info("Terminating PriceFetcher...")
-        self.price_fetcher.terminate()
-        self.price_fetcher.join()
-        self.logger.info("PriceFetcher terminated.")
-
         self.trading_bot.terminate()
-
-        self.price_fetcher.join()
 
 
 if __name__ == "__main__":

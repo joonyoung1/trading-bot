@@ -10,17 +10,9 @@ class ChatBot:
         self.telegram: Telegram = Telegram(token, chat_id)
         self.tracker: Tracker = tracker
 
-    def notify(
-        self, price: float, cash: float, quantity: float, volume: float | None = None
-    ):
+    def notify(self, price: float, cash: float, quantity: float):
         balance = quantity * price + cash
         self.tracker.record_history(price, balance)
-
-        if volume is not None:
-            trade_type = "Sold" if volume < 0 else "Bought"
-            trade_amount = abs(volume) / price
-            message = f"{trade_type} {trade_amount:.2f} at {price:.2f}"
-            self.telegram.send_message(message)
 
         self.telegram.send_message(
             f"Cash: ₩{cash:.2f}\n"
