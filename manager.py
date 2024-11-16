@@ -22,7 +22,7 @@ TICKER = os.getenv("TICKER")
 
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
-PIVOT = os.getenv("PIVOT")
+PIVOT = float(os.getenv("PIVOT"))
 
 
 class Manager:
