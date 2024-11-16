@@ -23,28 +23,6 @@ class Tracker:
         if not os.path.exists(self.plot_folder):
             os.makedirs(self.plot_folder)
 
-    def get_last_data(self) -> tuple[float, float]:
-        with open(self.history_file, "r") as file:
-            reader = csv.reader(file)
-            header = next(reader)
-            price_idx = header.index("price")
-            timestamp_idx = header.index("timestamp")
-
-            line = next(reader, None)
-            if line is None:
-                return None
-            
-            first_line = line
-            for line in reader:
-                pass
-
-            last_trade_price = (
-                None
-                if first_line[timestamp_idx] == line[timestamp_idx]
-                else float(line[price_idx])
-            )
-            return last_trade_price
-
     def record_history(self, price, balance):
         timestamp = datetime.now(self.kst).strftime("%Y-%m-%d %H:%M:%S")
         with open(self.history_file, "a", newline="") as file:
@@ -64,8 +42,12 @@ class Tracker:
         df["cumulative_price"] = (df["price"] - initial_price) / initial_price * 100
         df.set_index("timestamp", inplace=True)
 
-        df["cumulative_price"].plot(label="Cumulative Price", color="red", linestyle="-")
-        df["cumulative_return"].plot(label="Cumulative Return", color="orange", linestyle="--")
+        df["cumulative_price"].plot(
+            label="Cumulative Price", color="red", linestyle="-"
+        )
+        df["cumulative_return"].plot(
+            label="Cumulative Return", color="orange", linestyle="--"
+        )
 
         plt.xlabel("Date")
         plt.ylabel("Percentage (%)")
