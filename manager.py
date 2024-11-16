@@ -39,14 +39,12 @@ class Manager:
         self.tracker = Tracker(history_file, plot_folder)
 
         self.chat_bot = ChatBot(TOKEN, CHAT_ID, self.tracker)
-        last_trade_price = self.tracker.get_last_data()
         self.trading_bot = TradingBot(
             TICKER,
             self.brocker,
             self.chat_bot,
             self.logger,
             pivot_price=PIVOT,
-            last_trade_price=last_trade_price,
         )
 
     def init_logger(self) -> logging.Logger:

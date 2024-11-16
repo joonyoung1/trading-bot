@@ -4,7 +4,7 @@ import time
 from broker import Broker
 from logging import Logger
 from chat_bot import ChatBot
-from multiprocessing import Queue
+from utils import get_upper_price, get_lower_price
 
 
 class TradingBot:
@@ -89,12 +89,13 @@ class TradingBot:
             volume = self.cash - value * ratio
 
             if volume > max(5001, value * 0.005):
+                print(f"upper order at {lower_price} for {volume}")
                 buy_order = self.broker.buy_limit_order(
                     self.ticker, lower_price, volume / price
                 )
                 break
 
-            lower_price = self.get_lower_price(lower_price)
+            lower_price = get_lower_price(lower_price)
 
         upper_price = price
         while True:
@@ -103,22 +104,15 @@ class TradingBot:
             volume = value * ratio - self.cash
 
             if volume > max(5001, value * 0.005):
+                print(f"upper order at {upper_price} for {volume}")
                 sell_order = self.broker.sell_limit_order(
                     self.ticker, upper_price, volume / price
                 )
                 break
 
-            upper_price = self.get_upper_price(upper_price)
+            upper_price = get_upper_price(upper_price)
 
         return buy_order["uuid"], sell_order["uuid"]
-
-    @handle_errors
-    def get_lower_price(self, price):
-        return price
-
-    @handle_errors
-    def get_upper_price(self, price):
-        return price
 
     @handle_errors
     def wait(self, buy_uuid, sell_uuid):
