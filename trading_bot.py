@@ -89,10 +89,13 @@ class TradingBot:
             volume = self.cash - value * ratio
 
             if volume > max(5001, value * 0.005):
-                print(f"upper order at {lower_price} for {volume}")
+                self.logger.info(
+                    f"Buy {volume / lower_price:.2f} at {lower_price} (₩{volume:.2f})."
+                )
                 buy_order = self.broker.buy_limit_order(
                     self.ticker, lower_price, volume / price
                 )
+                self.logger.info(f"Order [{buy_order['uuid']}] opened.")
                 break
 
             lower_price = get_lower_price(lower_price)
@@ -104,10 +107,13 @@ class TradingBot:
             volume = value * ratio - self.cash
 
             if volume > max(5001, value * 0.005):
-                print(f"upper order at {upper_price} for {volume}")
+                self.logger.info(
+                    f"Sell {volume / upper_price:.2f} at {upper_price} (₩{volume:.2f})."
+                )
                 sell_order = self.broker.sell_limit_order(
                     self.ticker, upper_price, volume / price
                 )
+                self.logger.info(f"Order [{sell_order['uuid']}] opened.")
                 break
 
             upper_price = get_upper_price(upper_price)
@@ -151,51 +157,3 @@ class TradingBot:
         except Exception as e:
             self.logger.error(f"Failed to update balance: {e}")
             raise
-
-    @handle_errors
-    def buy(self, price: float, quantity: float) -> bool:
-        self.logger.info(f"Buy {quantity:.2f} at {price} (₩{price * quantity:.2f}).")
-
-        try:
-            order = self.broker.buy_limit_order(self.ticker, price, quantity)
-            uuid = order["uuid"]
-            self.logger.info(f"Order [{uuid}] opened.")
-            return self.wait(uuid)
-        except Exception as e:
-            self.logger.error(f"Failed to place buy order: {e}")
-            return False
-
-    @handle_errors
-    def sell(self, price: float, quantity: float) -> bool:
-        self.logger.info(f"Sell {quantity:.2f} at {price} (₩{price * quantity:.2f}).")
-
-        try:
-            order = self.broker.sell_limit_order(self.ticker, price, quantity)
-            uuid = order["uuid"]
-            self.logger.info(f"Order [{uuid}] opened.")
-            return self.wait(uuid)
-        except Exception as e:
-            self.logger.error(f"Failed to place sell order: {e}")
-            return False
-
-    @handle_errors
-    def wait(self, uuid: str, timeout: float = 180, interval: float = 10) -> bool:
-        end_time = time.time() + timeout
-
-        closed = False
-        while time.time() < end_time and self.running:
-            if self.broker.check_order_closed(uuid):
-                closed = True
-                break
-            time.sleep(interval)
-
-        if closed:
-            self.logger.info(f"Order [{uuid}] has been closed.")
-        else:
-            self.logger.warning(
-                f"Order [{uuid}] did not close within the expected time. Cancelling all open orders."
-            )
-            self.broker.cancel_orders(self.ticker)
-            self.logger.info(f"All open orders have been canceled.")
-
-        return closed
