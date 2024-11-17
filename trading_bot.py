@@ -8,8 +8,6 @@ from utils import get_upper_price, get_lower_price
 
 
 class TradingBot:
-    SENTINEL = "STOP"
-
     def __init__(
         self,
         ticker: str,

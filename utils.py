@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+
 def get_price_step(current_price: float) -> float:
     if current_price >= 2_000_000:
         return 1_000
@@ -31,9 +34,17 @@ def get_price_step(current_price: float) -> float:
 
 def get_upper_price(price: float) -> float:
     step = get_price_step(price)
-    return price + step
+    return precise_addition(price, step)
 
 
 def get_lower_price(price: float) -> float:
     step = get_price_step(price - 1e-6)
-    return price - step
+    return precise_substraction(price, step)
+
+
+def precise_addition(a: float, b: float) -> float:
+    return float(Decimal(str(a)) + Decimal(str(b)))
+
+
+def precise_substraction(a: float, b: float) -> float:
+    return float(Decimal(str(a)) - Decimal(str(b)))
