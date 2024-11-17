@@ -66,9 +66,10 @@ class TradingBot:
     def run(self) -> None:
         while self.running:
             buy_uuid, sell_uuid = self.place_orders()
-            self.wait(buy_uuid, sell_uuid)
+            self.wait_any_closed(buy_uuid, sell_uuid)
 
             self.broker.cancel_orders(self.ticker)
+            self.wait_all_closed(buy_uuid, sell_uuid)
             self.update_balance()
             self.chat_bot.notify(
                 self.broker.get_current_price(self.ticker),
@@ -121,14 +122,22 @@ class TradingBot:
         return buy_order["uuid"], sell_order["uuid"]
 
     @handle_errors
-    def wait(self, buy_uuid, sell_uuid):
+    def wait_any_closed(self, buy_uuid, sell_uuid):
         while self.running:
-            if self.broker.check_order_closed(
-                buy_uuid
-            ) or self.broker.check_order_closed(sell_uuid):
+            buy_closed = self.broker.check_order_closed(buy_uuid)
+            sell_colsed = self.broker.check_order_closed(sell_uuid)
+            if buy_closed or sell_colsed:
                 break
 
             time.sleep(3)
+
+    @handle_errors
+    def wait_all_closed(self, buy_uuid, sell_uuid):
+        while not (
+            self.broker.check_order_closed(buy_uuid)
+            and self.broker.check_order_closed(sell_uuid)
+        ):
+            time.sleep(0.5)
 
     @handle_errors
     def calc_ratio(self, price):
