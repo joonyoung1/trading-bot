@@ -49,8 +49,8 @@ class TradingBot:
     def start(self) -> None:
         self.logger.info("Starting TradingBot...")
 
-        self.update_balance()
         self.broker.cancel_orders(self.ticker)
+        self.update_balance()
         self.logger.info("TradingBot initialized.")
 
         self.chat_bot.notify(
