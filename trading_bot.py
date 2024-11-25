@@ -31,6 +31,7 @@ class TradingBot:
             else self.broker.get_current_price(self.ticker)
         )
         self.running: bool = False
+        self.last_price: bool | None = None
 
     @staticmethod
     def handle_errors(method):
@@ -87,7 +88,7 @@ class TradingBot:
             value = self.quantity * lower_price + self.cash
             volume = self.cash - value * ratio
 
-            if volume > max(5001, value * 0.005):
+            if volume > 5001 and abs(self.last_price - lower_price) / self.last_price >= 0.005:
                 self.logger.info(
                     f"Buy {volume / lower_price:.2f} at {lower_price} (₩{volume:.2f})."
                 )
@@ -105,7 +106,7 @@ class TradingBot:
             value = self.quantity * upper_price + self.cash
             volume = value * ratio - self.cash
 
-            if volume > max(5001, value * 0.005):
+            if volume > 5001 and abs(self.last_price - upper_price) / self.last_price >= 0.005:
                 self.logger.info(
                     f"Sell {volume / upper_price:.2f} at {upper_price} (₩{volume:.2f})."
                 )
@@ -125,6 +126,7 @@ class TradingBot:
             buy_closed = self.broker.check_order_closed(buy_uuid)
             sell_colsed = self.broker.check_order_closed(sell_uuid)
             if buy_closed or sell_colsed:
+                # TODO: update last price
                 break
 
             time.sleep(3)
