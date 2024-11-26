@@ -31,7 +31,7 @@ class TradingBot:
             else self.broker.get_current_price(self.ticker)
         )
         self.running: bool = False
-        self.last_price: bool | None = None
+        self.last_price: float = float("inf")
 
     @staticmethod
     def handle_errors(method):
@@ -64,8 +64,9 @@ class TradingBot:
     @handle_errors
     def run(self) -> None:
         while self.running:
-            buy_uuid, sell_uuid = self.place_orders()
-            self.wait_any_closed(buy_uuid, sell_uuid)
+            buy_uuid, sell_uuid, lower_price, upper_price = self.place_orders()
+            buy_closed = self.wait_any_closed(buy_uuid, sell_uuid)
+            self.last_price = lower_price if buy_closed else upper_price
 
             self.broker.cancel_orders(self.ticker)
             self.wait_all_closed(buy_uuid, sell_uuid)
@@ -88,7 +89,10 @@ class TradingBot:
             value = self.quantity * lower_price + self.cash
             volume = self.cash - value * ratio
 
-            if volume > 5001 and abs(self.last_price - lower_price) / self.last_price >= 0.005:
+            if (
+                volume > 5001
+                and abs(self.last_price - lower_price) / self.last_price >= 0.005
+            ):
                 self.logger.info(
                     f"Buy {volume / lower_price:.2f} at {lower_price} (₩{volume:.2f})."
                 )
@@ -106,7 +110,10 @@ class TradingBot:
             value = self.quantity * upper_price + self.cash
             volume = value * ratio - self.cash
 
-            if volume > 5001 and abs(self.last_price - upper_price) / self.last_price >= 0.005:
+            if (
+                volume > 5001
+                and abs(self.last_price - upper_price) / self.last_price >= 0.005
+            ):
                 self.logger.info(
                     f"Sell {volume / upper_price:.2f} at {upper_price} (₩{volume:.2f})."
                 )
@@ -118,16 +125,18 @@ class TradingBot:
 
             upper_price = get_upper_price(upper_price)
 
-        return buy_order["uuid"], sell_order["uuid"]
+        return buy_order["uuid"], sell_order["uuid"], lower_price, upper_price
 
     @handle_errors
     def wait_any_closed(self, buy_uuid, sell_uuid):
         while self.running:
             buy_closed = self.broker.check_order_closed(buy_uuid)
-            sell_colsed = self.broker.check_order_closed(sell_uuid)
-            if buy_closed or sell_colsed:
-                # TODO: update last price
-                break
+            if buy_closed:
+                return True
+
+            sell_closed = self.broker.check_order_closed(sell_uuid)
+            if sell_closed:
+                return False
 
             time.sleep(3)
 
