@@ -31,7 +31,7 @@ class TradingBot:
             else self.broker.get_current_price(self.ticker)
         )
         self.running: bool = False
-        self.last_price: float = self.broker.get_current_price(self.ticker)
+        self.last_price: float | None = None
 
     @staticmethod
     def handle_errors(method):
