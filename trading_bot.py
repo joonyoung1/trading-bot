@@ -89,9 +89,9 @@ class TradingBot:
             value = self.quantity * lower_price + self.cash
             volume = self.cash - value * ratio
 
-            if (
-                volume > 5001
-                and abs(self.last_price - lower_price) / self.last_price >= 0.005
+            if volume > 5001 and (
+                self.last_price is None
+                or abs(self.last_price - lower_price) / self.last_price >= 0.005
             ):
                 self.logger.info(
                     f"Buy {volume / lower_price:.2f} at {lower_price} (₩{volume:.2f})."
@@ -110,9 +110,9 @@ class TradingBot:
             value = self.quantity * upper_price + self.cash
             volume = value * ratio - self.cash
 
-            if (
-                volume > 5001
-                and abs(self.last_price - upper_price) / self.last_price >= 0.005
+            if volume > 5001 and (
+                self.last_price is None
+                or abs(self.last_price - upper_price) / self.last_price >= 0.005
             ):
                 self.logger.info(
                     f"Sell {volume / upper_price:.2f} at {upper_price} (₩{volume:.2f})."
