@@ -31,7 +31,7 @@ class TradingBot:
             else self.broker.get_current_price(self.ticker)
         )
         self.running: bool = False
-        self.last_price: float | None = None
+        self.last_price: float | None = self.broker.get_current_price(self.ticker)
 
     @staticmethod
     def handle_errors(method):
@@ -97,7 +97,7 @@ class TradingBot:
                     f"Buy {volume / lower_price:.2f} at {lower_price} (₩{volume:.2f})."
                 )
                 buy_order = self.broker.buy_limit_order(
-                    self.ticker, lower_price, volume / price
+                    self.ticker, lower_price, volume / lower_price
                 )
                 self.logger.info(f"Order [{buy_order['uuid']}] opened.")
                 break
@@ -118,7 +118,7 @@ class TradingBot:
                     f"Sell {volume / upper_price:.2f} at {upper_price} (₩{volume:.2f})."
                 )
                 sell_order = self.broker.sell_limit_order(
-                    self.ticker, upper_price, volume / price
+                    self.ticker, upper_price, volume / upper_price
                 )
                 self.logger.info(f"Order [{sell_order['uuid']}] opened.")
                 break
