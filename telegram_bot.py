@@ -1,89 +1,57 @@
-import logging
-
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    ContextTypes,
-    ConversationHandler,
-    MessageHandler,
-    filters,
-)
-
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-
-logger = logging.getLogger(__name__)
-
-CHOOSING = range(1)
-
-reply_keyboard = [["Status"]]
-markup = ReplyKeyboardMarkup(reply_keyboard)
+reply_keyboard = [
+    ["Start Engine", "Stop Engine"],
+    ["Check Status", "Reset"]
+]
+markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=False, resize_keyboard=True)
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Start the conversation and ask user for input."""
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "Trading Bot Manager",
-        reply_markup=markup,
+        "Telegram Bot Activated.",
+        reply_markup=markup
     )
 
-    return CHOOSING
 
-
-async def regular_choice(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Ask the user for info about the selected predefined choice."""
-    text = update.message.text
-    if "count" in context.user_data:
-        context.user_data["count"] += 1
+async def handle_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """사용자의 명령 처리."""
+    user_input = update.message.text
+    if user_input == "Start Engine":
+        response = "🚀 Engine started successfully!"
+    elif user_input == "Stop Engine":
+        response = "🛑 Engine stopped successfully!"
+    elif user_input == "Check Status":
+        response = "📊 All systems are operational!"
+    elif user_input == "Reset":
+        response = "🔄 System reset completed!"
     else:
-        context.user_data["count"] = 1
+        response = "❓ Unknown command. Please use the buttons."
 
+    await update.message.reply_text(response)
+
+
+async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        f"{context.user_data["count"]}"
+        "Telegram Bot Deactivated.",
+        reply_markup=ReplyKeyboardRemove()
     )
-
-    return CHOOSING
-
-
-async def done(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user_data = context.user_data
-    if "count" in user_data:
-        del user_data["count"]
-
-    await update.message.reply_text(
-        f"Done",
-        reply_markup=ReplyKeyboardRemove(),
-    )
-
-    user_data.clear()
-    return ConversationHandler.END
 
 
 def main() -> None:
-    """Run the bot."""
     application = Application.builder().token(TOKEN).build()
 
-    conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            CHOOSING: [
-                MessageHandler(filters.COMMAND, regular_choice),
-            ],
-        },
-        fallbacks=[MessageHandler(filters.Regex("^Done$"), done)],
-    )
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("stop", stop))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_command))
 
-    application.add_handler(conv_handler)
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    application.run_polling()
 
 
 if __name__ == "__main__":
