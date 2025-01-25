@@ -7,7 +7,7 @@ class Config:
         self.file_path = file_path
         self.config = self.load_config()
 
-    def load_config(self) -> None:
+    def load_config(self) -> dict:
         with open(self.file_path, "r") as file:
             return json.load(file)
 

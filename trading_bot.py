@@ -4,6 +4,7 @@ import logging
 
 from broker import Broker
 from utils import get_lower_price, get_upper_price
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class TradingBot:
         self.initialized = False
         self.running = False
         self.TICKER = os.getenv("TICKER")
-        self.pivot_price = float(os.getenv("PIVOT"))
+        self.pivot_price = config.get("PIVOT", float(os.getenv("PIVOT")))
 
         self.broker = Broker()
 
@@ -72,6 +73,7 @@ class TradingBot:
 
             if any_closed:
                 self.last_price = lower_price if bought else upper_price
+                self.update_pivot_price()
                 await self.update_balance()
 
     async def place_orders(self) -> tuple[str, str, float, float]:
@@ -133,7 +135,16 @@ class TradingBot:
     def is_trade_profitable(self, price: float) -> bool:
         return abs(self.last_price - price) / self.last_price >= 0.005
 
-    def calc_ratio(self, price):
+    def update_pivot_price(self) -> None:
+        if self.last_price >= self.pivot_price * 3:
+            self.pivot_price = self.last_price / 3
+            config.set("PIVOT", self.pivot_price)
+
+        elif self.pivot_price >= self.last_price * 3:
+            self.pivot_price = self.last_price * 3
+            config.set("PIVOT", self.pivot_price)
+
+    def calc_ratio(self, price: float) -> float:
         if price >= self.pivot_price:
             delta = price / self.pivot_price - 1
             ratio = -0.5 * 2**-delta + 1
