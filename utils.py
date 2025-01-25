@@ -19,7 +19,7 @@ def retry(max_attempts: int = 3, delay: float = 1.0, exceptions=(Exception,)):
                 except exceptions as e:
                     if attempt < max_attempts:
                         logger.warning(
-                            f"{func.__name__} filed (attempt {attempt}/{max_attempts}): {e}"
+                            f"{func.__name__} failed (attempt {attempt}/{max_attempts}): {e}"
                         )
                         await asyncio.sleep(delay)
                     else:

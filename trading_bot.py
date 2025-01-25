@@ -16,11 +16,12 @@ class TradingBot:
         self.initialized = False
         self.running = False
         self.TICKER = os.getenv("TICKER")
-        self.pivot_price = os.getenv("PIVOT")
+        self.pivot_price = float(os.getenv("PIVOT"))
 
         self.broker = Broker()
 
     async def initialize(self) -> None:
+        self.broker.initialize()
         await self.broker.cancel_orders(self.TICKER)
         await self.update_balance()
         await self.calibrate_ratio()
@@ -31,11 +32,16 @@ class TradingBot:
         self.cash = await self.broker.get_balance("KRW")
         self.quantity = await self.broker.get_balance(self.TICKER)
 
+        logger.info(f"cash: {self.cash}, quantity: {self.quantity}")
+
     async def calibrate_ratio(self):
-        self.last_price = await self.broker.get_balance(self.TICKER)
+        self.last_price = await self.broker.get_current_price(self.TICKER)
         ratio = self.calc_ratio(self.last_price)
+
         value = self.quantity * self.last_price + self.cash
         volume = self.cash - value * ratio
+
+        logger.info(f"calibration volume: {volume}")
 
         if volume >= 5001:
             order = await self.broker.buy_market_order(self.TICKER, volume)

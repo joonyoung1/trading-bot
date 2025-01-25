@@ -13,6 +13,8 @@ class Manager:
     async def run(self):
         try:
             await self.telegram_bot.start()
+            await self.trading_bot.initialize()
+            print("initialized")
             await self.trading_bot.start()
 
             await asyncio.Event().wait()

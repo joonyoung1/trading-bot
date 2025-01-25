@@ -7,7 +7,7 @@ import logging
 
 def setting_logger() -> None:
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
             logging.handlers.RotatingFileHandler(
