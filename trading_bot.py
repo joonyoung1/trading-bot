@@ -1,8 +1,11 @@
 import asyncio
 import os
+import logging
 
 from broker import Broker
 from utils import get_lower_price, get_upper_price
+
+logger = logging.getLogger(__name__)
 
 
 class NotInitializedError(Exception): ...
@@ -40,7 +43,7 @@ class TradingBot:
             order = await self.broker.sell_market_order(
                 self.TICKER, -volume / self.last_price
             )
-        
+
         await self.wait_order_closed(order["uuid"])
         await self.update_balance()
 
@@ -59,12 +62,10 @@ class TradingBot:
         while self.running:
             buy_uuid, sell_uuid, lower_price, upper_price = await self.place_orders()
             any_closed, bought = await self.wait_any_closed(buy_uuid, sell_uuid)
+            await self.broker.cancel_orders(self.TICKER)
 
             if any_closed:
                 self.last_price = lower_price if bought else upper_price
-                await self.broker.cancel_orders(self.TICKER)
-                await self.wait_order_closed(buy_uuid)
-                await self.wait_order_closed(sell_uuid)
                 await self.update_balance()
 
     async def place_orders(self) -> tuple[str, str, float, float]:

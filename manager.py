@@ -11,9 +11,15 @@ class Manager:
         self.telegram_bot = TelegramBot(self.trading_bot.get_status)
 
     async def run(self):
-        await self.telegram_bot.start()
-        asyncio.create_task(self.trading_bot.start())
+        try:
+            await self.telegram_bot.start()
+            await self.trading_bot.start()
 
-        await asyncio.Event().wait()
+            await asyncio.Event().wait()
 
-        await self.telegram_bot.stop()
+        except KeyboardInterrupt:
+            print("Interrupted")
+
+        finally:
+            await self.trading_bot.stop()
+            await self.telegram_bot.stop()

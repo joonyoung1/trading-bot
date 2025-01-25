@@ -73,4 +73,15 @@ class Broker:
 
         for order in response:
             uuid = order["uuid"]
-            self.upbit.cancel_order(uuid)
+            await self.cancel_order(uuid)
+
+        for order in response:
+            uuid = order["uuid"]
+
+            while not await self.check_order_closed(uuid):
+                asyncio.sleep(0.5)
+
+    @retry()
+    async def cancel_order(self, uuid: str) -> None:
+        task = partial(self.upbit.cancel_order, uuid)
+        await self.loop.run_in_executor(None, task)
