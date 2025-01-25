@@ -11,6 +11,8 @@ from telegram.ext import (
     filters,
 )
 
+from utils import retry
+
 
 class TelegramBot:
     def __init__(self, get_trading_bot_data: Callable[[], bool]) -> None:
@@ -29,6 +31,7 @@ class TelegramBot:
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.message_handler)
         )
 
+    @retry()
     async def start_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
@@ -37,6 +40,7 @@ class TelegramBot:
             reply_markup=self.markup,
         )
 
+    @retry()
     async def message_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:

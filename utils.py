@@ -1,4 +1,56 @@
 from decimal import Decimal
+import asyncio
+import time
+import functools
+import inspect
+import logging
+
+
+def retry(max_attempts: int = 3, delay: float = 1.0, exceptions=(Exception,)):
+    def decorator(func):
+        module_name = inspect.getmodule(func).__name__
+        logger = logging.getLogger(module_name)
+
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return await func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt < max_attempts:
+                        logger.warning(
+                            f"{func.__name__} filed (attempt {attempt}/{max_attempts}): {e}"
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        logger.error(
+                            f"{func.__name__} failed after {max_attempts} attempts"
+                        )
+                        raise
+
+        @functools.wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if attempt < max_attempts:
+                        logger.warning(
+                            f"{func.__name__} filed (attempt {attempt}/{max_attempts}): {e}"
+                        )
+                        time.sleep(delay)
+                    else:
+                        logger.error(
+                            f"{func.__name__} failed after {max_attempts} attempts"
+                        )
+                        raise
+
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
+
+    return decorator
 
 
 def get_price_step(current_price: float) -> float:
