@@ -1,4 +1,10 @@
 import asyncio
+import os
+
+
+ACCESS = os.getenv("ACCESS")
+SECRET = os.getenv("SECRET")
+TICKER = os.getenv("TICKER")
 
 
 class TradingBot:

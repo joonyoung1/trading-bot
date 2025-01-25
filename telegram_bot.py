@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Callable
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
@@ -11,9 +12,11 @@ from telegram.ext import (
 )
 
 
+TOKEN = os.getenv("TOKEN")
+
 class TelegramBot:
-    def __init__(self, token: str, get_trading_bot_data: Callable[[], bool]) -> None:
-        self.application = Application.builder().token(token).build()
+    def __init__(self, get_trading_bot_data: Callable[[], bool]) -> None:
+        self.application = Application.builder().token(TOKEN).build()
         self.get_trading_bot_data = get_trading_bot_data
 
         reply_keyboard = [["📊 Dashboard"]]
