@@ -39,6 +39,16 @@ class Broker:
     async def sell_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
         task = partial(self.upbit.sell_limit_order, ticker, price, quantity)
         return await self.loop.run_in_executor(None, task)
+    
+    @retry()
+    async def buy_market_order(self, ticker: str, amount: float) -> dict:
+        task = partial(self.upbit.buy_market_order, ticker, amount)
+        return await self.loop.run_in_executor(None, task)
+
+    @retry()
+    async def sell_market_order(self, ticker: str, quantity: float) -> dict:
+        task = partial(self.upbit.sell_market_order, ticker, quantity)
+        return await self.loop.run_in_executor(None, task)
 
     @retry()
     async def check_order_closed(self, uuid: str) -> bool:
