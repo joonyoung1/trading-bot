@@ -1,7 +1,7 @@
 from functools import wraps
 import time
 
-from broker import Broker
+from _broker import Broker
 from logging import Logger
 from chat_bot import ChatBot
 from utils import get_upper_price, get_lower_price

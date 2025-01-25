@@ -10,7 +10,7 @@ from multiprocessing import Queue, Process
 from pyupbit import WebSocketClient
 import signal
 
-from broker import Broker
+from _broker import Broker
 from _trading_bot import TradingBot
 from chat_bot import ChatBot
 from tracker import Tracker

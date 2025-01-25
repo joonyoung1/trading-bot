@@ -12,11 +12,11 @@ from telegram.ext import (
 )
 
 
-TOKEN = os.getenv("TOKEN")
-
 class TelegramBot:
     def __init__(self, get_trading_bot_data: Callable[[], bool]) -> None:
-        self.application = Application.builder().token(TOKEN).build()
+        self.TOKEN = os.getenv("TOKEN")
+
+        self.application = Application.builder().token(self.TOKEN).build()
         self.get_trading_bot_data = get_trading_bot_data
 
         reply_keyboard = [["📊 Dashboard"]]

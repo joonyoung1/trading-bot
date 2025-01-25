@@ -2,11 +2,6 @@ import asyncio
 import os
 
 
-ACCESS = os.getenv("ACCESS")
-SECRET = os.getenv("SECRET")
-TICKER = os.getenv("TICKER")
-
-
 class TradingBot:
     def __init__(self) -> None:
         self.running = False
