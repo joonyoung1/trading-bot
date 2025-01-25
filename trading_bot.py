@@ -14,5 +14,5 @@ class TradingBot:
     async def stop(self) -> None:
         self.running = False
 
-    async def get_status(self) -> bool:
+    def get_status(self) -> bool:
         return self.running

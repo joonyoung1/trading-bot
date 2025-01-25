@@ -1,4 +1,5 @@
 import asyncio
+from typing import Callable
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
 from telegram.ext import (
@@ -11,8 +12,9 @@ from telegram.ext import (
 
 
 class TelegramBot:
-    def __init__(self, token: str) -> None:
+    def __init__(self, token: str, get_trading_bot_data: Callable[[], bool]) -> None:
         self.application = Application.builder().token(token).build()
+        self.get_trading_bot_data = get_trading_bot_data
 
         reply_keyboard = [["📊 Dashboard"]]
         self.markup = ReplyKeyboardMarkup(
@@ -20,12 +22,25 @@ class TelegramBot:
         )
 
         self.application.add_handler(CommandHandler("start", self.start_handler))
+        self.application.add_handler(
+            MessageHandler(filters.TEXT & ~filters.COMMAND, self.message_handler)
+        )
 
     async def start_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
         await update.message.reply_text(
-            "Telegram Bot Activated.", reply_markup=self.markup
+            "Telegram Bot Activated.",
+            reply_markup=self.markup,
+        )
+
+    async def message_handler(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        is_trading_bot_running = self.get_trading_bot_data()
+        await update.message.reply_text(
+            f"Trading Bot Running Status : {is_trading_bot_running}",
+            reply_markup=self.markup,
         )
 
     async def start(self) -> None:
