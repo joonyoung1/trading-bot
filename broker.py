@@ -1,37 +1,72 @@
+import os
+import asyncio
+from functools import partial
+
 import pyupbit
-from pyupbit import Upbit
+
+from utils import retry
 
 
 class Broker:
-    def __init__(self, access: str, secret: str) -> None:
-        self.upbit: Upbit = Upbit(access, secret)
+    def __init__(self) -> None:
+        self.ACCESS = os.getenv("ACCESS")
+        self.SECRET = os.getenv("SECRET")
 
-    def get_current_price(self, ticker: str) -> float:
-        return float(pyupbit.get_current_price(ticker))
+        self.upbit = pyupbit.Upbit(self.ACCESS, self.SECRET)
+    
+    def initialize(self) -> None:
+        self.loop = asyncio.get_running_loop()
+    
+    @retry()
+    async def get_current_price(self, ticker) -> float:
+        task = partial(pyupbit.get_current_price, ticker)
+        price = await self.loop.run_in_executor(None, task)
+        return float(price)
+    
+    @retry()
+    async def get_balance(self, ticker: str) -> float:
+        task = partial(self.upbit.get_balance, ticker)
+        balance = await self.loop.run_in_executor(None, task)
 
-    def get_balance(self, ticker: str) -> float:
-        balance = self.upbit.get_balance(ticker)
         if balance is None:
             raise ValueError("Balance is `None` instead of a float")
-        return balance
+        return float(balance)
+    
+    @retry()
+    async def buy_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
+        task = partial(self.upbit.buy_limit_order, ticker, price, quantity)
+        return await self.loop.run_in_executor(None, task)
 
-    def buy_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
-        return self.upbit.buy_limit_order(ticker, price, quantity)
+    @retry()
+    async def sell_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
+        task = partial(self.upbit.sell_limit_order, ticker, price, quantity)
+        return await self.loop.run_in_executor(None, task)
+    
+    @retry()
+    async def buy_market_order(self, ticker: str, amount: float) -> dict:
+        task = partial(self.upbit.buy_market_order, ticker, amount)
+        return await self.loop.run_in_executor(None, task)
+    
+    @retry()
+    async def sell_market_order(self, ticker: str, quantity: float) -> dict:
+        task = partial(self.upbit.sell_market_order, ticker, quantity)
+        return await self.loop.run_in_executor(None, task)
 
-    def sell_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
-        return self.upbit.sell_limit_order(ticker, price, quantity)
-
-    def check_order_closed(self, uuid: str) -> bool:
-        order = self.upbit.get_order(uuid)
+    @retry()
+    async def check_order_closed(self, uuid: str) -> bool:
+        order = await self.get_order(uuid)
         return order is not None and (
             order["state"] == "done" or order["state"] == "cancel"
         )
 
-    def get_order(self, uuid: str) -> dict:
-        return self.upbit.get_order(uuid)
+    @retry()
+    async def get_order(self, uuid_or_ticker: str) -> dict:
+        task = partial(self.upbit.get_order, uuid_or_ticker)
+        return await self.loop.run_in_executor(None, task)
 
-    def cancel_orders(self, ticker: str) -> None:
-        response = self.upbit.get_order(ticker)
+    @retry()
+    async def cancel_orders(self, ticker: str) -> None:
+        response = await self.get_order(ticker)
         if isinstance(response, dict) and "error" in response:
             error = response["error"]
             error_name = error.get("name", "Unknown error")
@@ -40,4 +75,15 @@ class Broker:
 
         for order in response:
             uuid = order["uuid"]
-            self.upbit.cancel_order(uuid)
+            await self.cancel_order(uuid)
+
+        for order in response:
+            uuid = order["uuid"]
+
+            while not await self.check_order_closed(uuid):
+                asyncio.sleep(0.5)
+
+    @retry()
+    async def cancel_order(self, uuid: str) -> None:
+        task = partial(self.upbit.cancel_order, uuid)
+        await self.loop.run_in_executor(None, task)

@@ -1,87 +1,97 @@
-from functools import wraps
-import time
+import asyncio
+import os
+import logging
+from enum import Enum
 
 from broker import Broker
-from logging import Logger
-from chat_bot import ChatBot
-from utils import get_upper_price, get_lower_price
+from utils import get_lower_price, get_upper_price
+from config import config
+
+logger = logging.getLogger(__name__)
+
+
+class NotInitializedError(Exception): ...
 
 
 class TradingBot:
-    def __init__(
-        self,
-        ticker: str,
-        broker: Broker,
-        chat_bot: ChatBot,
-        logger: Logger,
-        pivot_price: float | None = None,
-    ) -> None:
-        self.ticker: str = ticker
-        self.broker: Broker = broker
-        self.chat_bot: ChatBot = chat_bot
-        self.logger: Logger = logger
+    class State(Enum):
+        INITIALIZED = 0
+        RUNNING = 1
+        STOPPING = 2
+        TERMINATED = 3
 
-        self.cash: float = 0
-        self.quantity: float = 0
-        self.running: bool = False
+    def __init__(self) -> None:
+        self.state = self.State.TERMINATED
+        self.TICKER = os.getenv("TICKER")
+        self.pivot_price = config.get("PIVOT", float(os.getenv("PIVOT")))
 
-        self.pivot_price: float = (
-            pivot_price
-            if pivot_price is not None
-            else self.broker.get_current_price(self.ticker)
-        )
-        self.running: bool = False
-        self.last_price: float | None = self.broker.get_current_price(self.ticker)
+        self.broker = Broker()
 
-    @staticmethod
-    def handle_errors(method):
-        @wraps(method)
-        def wrapper(self: "TradingBot", *args, **kwargs):
-            try:
-                return method(self, *args, **kwargs)
-            except Exception as e:
-                self.logger.error(f"An error occurred: {e}", exc_info=True)
-                self.chat_bot.alert(f"An error occurred: {e}")
-                raise
+    async def initialize(self) -> None:
+        self.broker.initialize()
+        await self.broker.cancel_orders(self.TICKER)
+        await self.update_balance()
+        await self.calibrate_ratio()
 
-        return wrapper
+        self.state = self.State.INITIALIZED
 
-    @handle_errors
-    def start(self) -> None:
-        self.logger.info("Starting TradingBot...")
+    async def update_balance(self) -> None:
+        self.cash = await self.broker.get_balance("KRW")
+        self.quantity = await self.broker.get_balance(self.TICKER)
 
-        self.broker.cancel_orders(self.ticker)
-        self.update_balance()
-        self.logger.info("TradingBot initialized.")
+        logger.info(f"cash: {self.cash}, quantity: {self.quantity}")
 
-        self.chat_bot.notify(
-            self.broker.get_current_price(self.ticker), self.cash, self.quantity
-        )
-        self.logger.info("TradingBot started.")
-        self.running = True
-        self.run()
+    async def calibrate_ratio(self):
+        self.last_price = await self.broker.get_current_price(self.TICKER)
+        ratio = self.calc_ratio(self.last_price)
 
-    @handle_errors
-    def run(self) -> None:
-        while self.running:
-            buy_uuid, sell_uuid, lower_price, upper_price = self.place_orders()
-            buy_closed = self.wait_any_closed(buy_uuid, sell_uuid)
-            self.last_price = lower_price if buy_closed else upper_price
+        value = self.quantity * self.last_price + self.cash
+        volume = self.cash - value * ratio
 
-            self.broker.cancel_orders(self.ticker)
-            self.wait_all_closed(buy_uuid, sell_uuid)
-            self.update_balance()
-            self.chat_bot.notify(
-                self.broker.get_current_price(self.ticker),
-                self.cash,
-                self.quantity,
-            )
+        logger.info(f"calibration volume: {volume}")
 
-        self.logger.info("TradingBot terminated.")
+        if abs(volume) >= 5001:
+            if volume > 0:
+                order = await self.broker.buy_market_order(self.TICKER, volume)
+            else:
+                order = await self.broker.sell_market_order(
+                    self.TICKER, -volume / self.last_price
+                )
 
-    @handle_errors
-    def place_orders(self):
-        price = self.broker.get_current_price(self.ticker)
+            await self.wait_order_closed(order["uuid"])
+            await self.update_balance()
+
+    async def start(self) -> None:
+        if self.state != self.State.INITIALIZED:
+            raise NotInitializedError
+
+        self.state = self.State.RUNNING
+        await self.run()
+
+    async def stop(self) -> None:
+        self.state = self.State.STOPPING
+
+        while self.state != self.State.TERMINATED:
+            await asyncio.sleep(0.5)
+
+    async def run(self) -> None:
+        while self.state == self.State.RUNNING:
+            buy_uuid, sell_uuid, lower_price, upper_price = await self.place_orders()
+            any_closed, bought = await self.wait_any_closed(buy_uuid, sell_uuid)
+            await self.broker.cancel_orders(self.TICKER)
+
+            if any_closed:
+                self.last_price = lower_price if bought else upper_price
+                self.update_pivot_price()
+                await self.update_balance()
+        
+        self.state = self.State.TERMINATED
+
+    async def place_orders(self) -> tuple[str, str, float, float]:
+        if self.last_price is not None:
+            price = self.last_price
+        else:
+            price = await self.broker.get_current_price(self.TICKER)
 
         lower_price = price
         while True:
@@ -89,17 +99,11 @@ class TradingBot:
             value = self.quantity * lower_price + self.cash
             volume = self.cash - value * ratio
 
-            if volume > 5001 and (
-                self.last_price is None
-                or abs(self.last_price - lower_price) / self.last_price >= 0.005
-            ):
-                self.logger.info(
-                    f"Buy {volume / lower_price:.2f} at {lower_price} (₩{volume:.2f})."
+            if volume >= 5001 and self.is_trade_profitable(lower_price):
+                quantity = volume / lower_price
+                buy_order = await self.broker.buy_limit_order(
+                    self.TICKER, lower_price, quantity
                 )
-                buy_order = self.broker.buy_limit_order(
-                    self.ticker, lower_price, volume / lower_price
-                )
-                self.logger.info(f"Order [{buy_order['uuid']}] opened.")
                 break
 
             lower_price = get_lower_price(lower_price)
@@ -110,68 +114,55 @@ class TradingBot:
             value = self.quantity * upper_price + self.cash
             volume = value * ratio - self.cash
 
-            if volume > 5001 and (
-                self.last_price is None
-                or abs(self.last_price - upper_price) / self.last_price >= 0.005
-            ):
-                self.logger.info(
-                    f"Sell {volume / upper_price:.2f} at {upper_price} (₩{volume:.2f})."
+            if volume >= 5001 and self.is_trade_profitable(upper_price):
+                quantity = volume / upper_price
+                sell_order = await self.broker.sell_limit_order(
+                    self.TICKER, upper_price, volume / upper_price
                 )
-                sell_order = self.broker.sell_limit_order(
-                    self.ticker, upper_price, volume / upper_price
-                )
-                self.logger.info(f"Order [{sell_order['uuid']}] opened.")
                 break
 
             upper_price = get_upper_price(upper_price)
 
         return buy_order["uuid"], sell_order["uuid"], lower_price, upper_price
 
-    @handle_errors
-    def wait_any_closed(self, buy_uuid, sell_uuid):
-        while self.running:
-            buy_closed = self.broker.check_order_closed(buy_uuid)
-            if buy_closed:
-                return True
+    async def wait_any_closed(
+        self, buy_uuid: str, sell_uuid: str
+    ) -> tuple[bool, bool | None]:
+        while self.state != self.State.RUNNING:
+            if await self.broker.check_order_closed(buy_uuid):
+                return True, True
 
-            sell_closed = self.broker.check_order_closed(sell_uuid)
-            if sell_closed:
-                return False
+            if await self.broker.check_order_closed(sell_uuid):
+                return True, False
 
-            time.sleep(3)
+            await asyncio.sleep(3)
 
-    @handle_errors
-    def wait_all_closed(self, buy_uuid, sell_uuid):
-        while not (
-            self.broker.check_order_closed(buy_uuid)
-            and self.broker.check_order_closed(sell_uuid)
-        ):
-            time.sleep(0.5)
+        return False, None
 
-    @handle_errors
-    def calc_ratio(self, price):
-        delta = price / self.pivot_price - 1
-        if delta == 0:
-            ratio = 0.5
-        elif delta < 0:
-            ratio = 0.5 * delta**2 + delta + 0.5
-        else:
+    async def wait_order_closed(self, uuid: str) -> None:
+        while not await self.broker.check_order_closed(uuid):
+            asyncio.sleep(0.5)
+
+    def is_trade_profitable(self, price: float) -> bool:
+        return abs(self.last_price - price) / self.last_price >= 0.005
+
+    def update_pivot_price(self) -> None:
+        if self.last_price >= self.pivot_price * 3:
+            self.pivot_price = self.last_price / 3
+            config.set("PIVOT", self.pivot_price)
+
+        elif self.pivot_price >= self.last_price * 3:
+            self.pivot_price = self.last_price * 3
+            config.set("PIVOT", self.pivot_price)
+
+    def calc_ratio(self, price: float) -> float:
+        if price >= self.pivot_price:
+            delta = price / self.pivot_price - 1
             ratio = -0.5 * 2**-delta + 1
+        else:
+            delta = self.pivot_price / price - 1
+            ratio = 0.5 * 2**-delta
         return ratio
 
-    @handle_errors
-    def terminate(self) -> None:
-        self.logger.info("Terminating TradingBot...")
-        self.running = False
-
-    @handle_errors
-    def update_balance(self) -> None:
-        try:
-            self.cash = self.broker.get_balance("KRW")
-            self.quantity = self.broker.get_balance(self.ticker)
-            self.logger.info(
-                f"Cash: ₩{self.cash:.2f}, Assets: {self.quantity:.2f} units."
-            )
-        except Exception as e:
-            self.logger.error(f"Failed to update balance: {e}")
-            raise
+    def get_status(self) -> bool:
+        return self.state == self.State.RUNNING
