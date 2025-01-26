@@ -1,6 +1,7 @@
 import asyncio
 import os
 import logging
+from enum import Enum
 
 from broker import Broker
 from utils import get_lower_price, get_upper_price
@@ -13,9 +14,14 @@ class NotInitializedError(Exception): ...
 
 
 class TradingBot:
+    class State(Enum):
+        INITIALIZED = 0
+        RUNNING = 1
+        STOPPING = 2
+        TERMINATED = 3
+
     def __init__(self) -> None:
-        self.initialized = False
-        self.running = False
+        self.state = self.State.TERMINATED
         self.TICKER = os.getenv("TICKER")
         self.pivot_price = config.get("PIVOT", float(os.getenv("PIVOT")))
 
@@ -27,7 +33,7 @@ class TradingBot:
         await self.update_balance()
         await self.calibrate_ratio()
 
-        self.initialized = True
+        self.state = self.State.INITIALIZED
 
     async def update_balance(self) -> None:
         self.cash = await self.broker.get_balance("KRW")
@@ -44,29 +50,32 @@ class TradingBot:
 
         logger.info(f"calibration volume: {volume}")
 
-        if volume >= 5001:
-            order = await self.broker.buy_market_order(self.TICKER, volume)
-        elif volume <= -5001:
-            order = await self.broker.sell_market_order(
-                self.TICKER, -volume / self.last_price
-            )
+        if abs(volume) >= 5001:
+            if volume > 0:
+                order = await self.broker.buy_market_order(self.TICKER, volume)
+            else:
+                order = await self.broker.sell_market_order(
+                    self.TICKER, -volume / self.last_price
+                )
 
-        await self.wait_order_closed(order["uuid"])
-        await self.update_balance()
+            await self.wait_order_closed(order["uuid"])
+            await self.update_balance()
 
     async def start(self) -> None:
-        if not self.initialized:
+        if self.state != self.State.INITIALIZED:
             raise NotInitializedError
 
-        self.running = True
+        self.state = self.State.RUNNING
         await self.run()
 
     async def stop(self) -> None:
-        self.running = False
-        self.initialized = False
+        self.state = self.State.STOPPING
+
+        while self.state != self.State.TERMINATED:
+            await asyncio.sleep(0.5)
 
     async def run(self) -> None:
-        while self.running:
+        while self.state == self.State.RUNNING:
             buy_uuid, sell_uuid, lower_price, upper_price = await self.place_orders()
             any_closed, bought = await self.wait_any_closed(buy_uuid, sell_uuid)
             await self.broker.cancel_orders(self.TICKER)
@@ -75,6 +84,8 @@ class TradingBot:
                 self.last_price = lower_price if bought else upper_price
                 self.update_pivot_price()
                 await self.update_balance()
+        
+        self.state = self.State.TERMINATED
 
     async def place_orders(self) -> tuple[str, str, float, float]:
         if self.last_price is not None:
@@ -117,14 +128,14 @@ class TradingBot:
     async def wait_any_closed(
         self, buy_uuid: str, sell_uuid: str
     ) -> tuple[bool, bool | None]:
-        while self.running:
+        while self.state != self.State.RUNNING:
             if await self.broker.check_order_closed(buy_uuid):
                 return True, True
 
             if await self.broker.check_order_closed(sell_uuid):
                 return True, False
 
-            asyncio.sleep(3)
+            await asyncio.sleep(3)
 
         return False, None
 
@@ -154,4 +165,4 @@ class TradingBot:
         return ratio
 
     def get_status(self) -> bool:
-        return self.running
+        return self.state == self.State.RUNNING

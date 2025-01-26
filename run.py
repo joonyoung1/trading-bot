@@ -16,6 +16,8 @@ def setting_logger() -> None:
         ],
     )
 
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
 
 if __name__ == "__main__":
     load_dotenv()
