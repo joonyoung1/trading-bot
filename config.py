@@ -20,7 +20,7 @@ class Config:
 
     def set(self, key: str, value: Any) -> None:
         self.config[key] = value
-        self.save_config(self)
+        self.save_config()
 
 
 config = Config()

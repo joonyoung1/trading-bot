@@ -128,7 +128,7 @@ class TradingBot:
     async def wait_any_closed(
         self, buy_uuid: str, sell_uuid: str
     ) -> tuple[bool, bool | None]:
-        while self.state != self.State.RUNNING:
+        while self.state == self.State.RUNNING:
             if await self.broker.check_order_closed(buy_uuid):
                 return True, True
 

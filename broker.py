@@ -81,7 +81,7 @@ class Broker:
             uuid = order["uuid"]
 
             while not await self.check_order_closed(uuid):
-                asyncio.sleep(0.5)
+                await asyncio.sleep(0.5)
 
     @retry()
     async def cancel_order(self, uuid: str) -> None:
