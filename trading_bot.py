@@ -43,10 +43,7 @@ class TradingBot:
 
     async def calibrate_ratio(self):
         self.last_price = await self.broker.get_current_price(self.TICKER)
-        ratio = self.calc_ratio(self.last_price)
-
-        value = self.quantity * self.last_price + self.cash
-        volume = self.cash - value * ratio
+        volume = self.calc_volume(self.last_price)
 
         logger.info(f"calibration volume: {volume}")
 
@@ -84,7 +81,7 @@ class TradingBot:
                 self.last_price = lower_price if bought else upper_price
                 self.update_pivot_price()
                 await self.update_balance()
-        
+
         self.state = self.State.TERMINATED
 
     async def place_orders(self) -> tuple[str, str, float, float]:
@@ -95,10 +92,7 @@ class TradingBot:
 
         lower_price = price
         while True:
-            ratio = self.calc_ratio(lower_price)
-            value = self.quantity * lower_price + self.cash
-            volume = self.cash - value * ratio
-
+            volume = self.calc_volume(lower_price)
             if volume >= 5001 and self.is_trade_profitable(lower_price):
                 quantity = volume / lower_price
                 buy_order = await self.broker.buy_limit_order(
@@ -110,10 +104,7 @@ class TradingBot:
 
         upper_price = price
         while True:
-            ratio = self.calc_ratio(upper_price)
-            value = self.quantity * upper_price + self.cash
-            volume = value * ratio - self.cash
-
+            volume = -self.calc_volume(upper_price)
             if volume >= 5001 and self.is_trade_profitable(upper_price):
                 quantity = volume / upper_price
                 sell_order = await self.broker.sell_limit_order(
@@ -155,14 +146,16 @@ class TradingBot:
             self.pivot_price = self.last_price * 3
             config.set("PIVOT", self.pivot_price)
 
-    def calc_ratio(self, price: float) -> float:
+    def calc_volume(self, price: float) -> float:
         if price >= self.pivot_price:
             delta = price / self.pivot_price - 1
             ratio = -0.5 * 2**-delta + 1
         else:
             delta = self.pivot_price / price - 1
             ratio = 0.5 * 2**-delta
-        return ratio
+
+        value = self.quantity * price + self.cash
+        return self.cash - value * ratio
 
     def get_status(self) -> bool:
         return self.state == self.State.RUNNING
