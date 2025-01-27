@@ -32,6 +32,7 @@ class TradingBot:
         await self.broker.cancel_orders(self.TICKER)
         await self.update_balance()
         await self.calibrate_ratio()
+        self.set_optimal_last_price()
 
         self.state = self.State.INITIALIZED
 
@@ -41,7 +42,7 @@ class TradingBot:
 
         logger.info(f"cash: {self.cash}, quantity: {self.quantity}")
 
-    async def calibrate_ratio(self):
+    async def calibrate_ratio(self) -> None:
         self.last_price = await self.broker.get_current_price(self.TICKER)
         volume = self.calc_volume(self.last_price)
 
@@ -57,6 +58,23 @@ class TradingBot:
 
             await self.wait_order_closed(order["uuid"])
             await self.update_balance()
+
+    def set_optimal_last_price(self) -> None:
+        min_volume = abs(self.calc_volume(self.last_price))
+        optimal_price = self.last_price
+
+        for func in (get_lower_price, get_upper_price):
+            price = self.last_price
+            while True:
+                price = func(price)
+                volume = abs(self.calc_volume(price))
+
+                if volume < min_volume:
+                    min_volume = volume
+                    optimal_price = price
+                else:
+                    break
+        self.last_price = optimal_price
 
     async def start(self) -> None:
         if self.state != self.State.INITIALIZED:
