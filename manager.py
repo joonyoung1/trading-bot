@@ -3,12 +3,18 @@ import signal
 
 from telegram_bot import TelegramBot
 from trading_bot import TradingBot
+from data_processor import DataProcessor
+from tracker import Tracker
+from broker import Broker
 
 
 class Manager:
     def __init__(self) -> None:
-        self.trading_bot = TradingBot()
-        self.telegram_bot = TelegramBot(self.trading_bot.get_status)
+        self.broker = Broker()
+        self.tracker = Tracker()
+        self.trading_bot = TradingBot(self.broker, self.tracker)
+        self.data_processor = DataProcessor(self.broker, self.tracker)
+        self.telegram_bot = TelegramBot(self.trading_bot, self.data_processor)
 
     async def run(self) -> None:
         stop_event = asyncio.Event()
@@ -17,12 +23,11 @@ class Manager:
             stop_event.set()
 
         loop = asyncio.get_running_loop()
-        loop.add_signal_handler(signal.SIGINT, signal_handler)
-        loop.add_signal_handler(signal.SIGTERM, signal_handler)
-        loop.add_signal_handler(signal.SIGHUP, signal_handler)
-        loop.add_signal_handler(signal.SIGQUIT, signal_handler)
+        for sig in [signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT]:
+            loop.add_signal_handler(sig, signal_handler)
 
         try:
+            self.broker.set_loop(loop)
             await self.telegram_bot.start()
             await self.trading_bot.initialize()
             asyncio.create_task(self.trading_bot.start())

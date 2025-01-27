@@ -2,10 +2,14 @@ import asyncio
 import os
 import logging
 from enum import Enum
+from typing import TYPE_CHECKING
 
-from broker import Broker
 from utils import get_lower_price, get_upper_price
 from config import config
+
+if TYPE_CHECKING:
+    from broker import Broker
+    from tracker import Tracker
 
 logger = logging.getLogger(__name__)
 
@@ -20,15 +24,15 @@ class TradingBot:
         STOPPING = 2
         TERMINATED = 3
 
-    def __init__(self) -> None:
+    def __init__(self, broker: "Broker", tracker: "Tracker") -> None:
+        self.broker = broker
+        self.tracker = tracker
+
         self.state = self.State.TERMINATED
         self.TICKER = os.getenv("TICKER")
         self.pivot_price = config.get("PIVOT", float(os.getenv("PIVOT")))
 
-        self.broker = Broker()
-
     async def initialize(self) -> None:
-        self.broker.initialize()
         await self.broker.cancel_orders(self.TICKER)
         await self.update_balance()
         await self.calibrate_ratio()
