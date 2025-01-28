@@ -1,7 +1,7 @@
 import asyncio
 import os
 import logging
-from enum import Enum
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from utils import get_lower_price, get_upper_price
@@ -18,7 +18,8 @@ class NotInitializedError(Exception): ...
 
 
 class TradingBot:
-    class State(Enum):
+    @dataclass(frozen=True)
+    class State:
         INITIALIZED = 0
         RUNNING = 1
         STOPPING = 2

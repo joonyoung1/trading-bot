@@ -1,6 +1,6 @@
 import os
-from enum import Enum
 import asyncio
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from telegram import ReplyKeyboardMarkup, Update
@@ -20,7 +20,8 @@ if TYPE_CHECKING:
 
 
 class TelegramBot:
-    class Button(Enum):
+    @dataclass(frozen=True)
+    class Button:
         TOGGLE = "🔄 Toggle TradingBot"
         DASHBOARD = "📊 Dashboard"
 
@@ -33,7 +34,7 @@ class TelegramBot:
         self.TOKEN = os.getenv("TOKEN")
         self.application = Application.builder().token(self.TOKEN).build()
 
-        reply_keyboard = [[self.Button.TOGGLE.value, self.Button.DASHBOARD.value]]
+        reply_keyboard = [[self.Button.TOGGLE, self.Button.DASHBOARD]]
         self.markup = ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=False, resize_keyboard=True
         )
@@ -47,7 +48,6 @@ class TelegramBot:
     async def start_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        print("start!@!@")
         await update.message.reply_text(
             "Telegram Bot Activated.",
             reply_markup=self.markup,
@@ -59,7 +59,7 @@ class TelegramBot:
     ) -> None:
         text = update.message.text
 
-        if text == self.Button.TOGGLE.value:
+        if text == self.Button.TOGGLE:
             if self.trading_bot.is_running():
                 await update.message.reply_text(
                     f"Terminating Trading Bot ...",
@@ -83,7 +83,7 @@ class TelegramBot:
                     reply_markup=self.markup,
                 )
 
-        elif text == self.Button.DASHBOARD.value:
+        elif text == self.Button.DASHBOARD:
             await update.message.reply_text(
                 f"Dashboard.",
                 reply_markup=self.markup,
