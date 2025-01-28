@@ -88,10 +88,11 @@ class TradingBot:
         await self.run()
 
     async def stop(self) -> None:
-        self.state = self.State.STOPPING
+        if self.state == self.State.RUNNING:
+            self.state = self.State.STOPPING
 
-        while self.state != self.State.TERMINATED:
-            await asyncio.sleep(0.5)
+            while self.state != self.State.TERMINATED:
+                await asyncio.sleep(0.5)
 
     async def run(self) -> None:
         while self.state == self.State.RUNNING:
@@ -179,5 +180,8 @@ class TradingBot:
         value = self.quantity * price + self.cash
         return self.cash - value * ratio
 
-    def get_status(self) -> bool:
+    def is_running(self) -> bool:
         return self.state == self.State.RUNNING
+
+    def is_terminated(self) -> bool:
+        return self.state == self.State.TERMINATED

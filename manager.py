@@ -29,11 +29,8 @@ class Manager:
         try:
             self.broker.set_loop(loop)
             await self.telegram_bot.start()
-            await self.trading_bot.initialize()
-            asyncio.create_task(self.trading_bot.start())
 
             await stop_event.wait()
 
         finally:
-            await self.trading_bot.stop()
             await self.telegram_bot.stop()
