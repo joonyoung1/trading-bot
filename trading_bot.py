@@ -1,11 +1,15 @@
 import asyncio
 import os
 import logging
-from enum import Enum
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from broker import Broker
 from utils import get_lower_price, get_upper_price
 from config import config
+
+if TYPE_CHECKING:
+    from broker import Broker
+    from tracker import Tracker
 
 logger = logging.getLogger(__name__)
 
@@ -14,21 +18,22 @@ class NotInitializedError(Exception): ...
 
 
 class TradingBot:
-    class State(Enum):
+    @dataclass(frozen=True)
+    class State:
         INITIALIZED = 0
         RUNNING = 1
         STOPPING = 2
         TERMINATED = 3
 
-    def __init__(self) -> None:
+    def __init__(self, broker: "Broker", tracker: "Tracker") -> None:
+        self.broker = broker
+        self.tracker = tracker
+
         self.state = self.State.TERMINATED
         self.TICKER = os.getenv("TICKER")
         self.pivot_price = config.get("PIVOT", float(os.getenv("PIVOT")))
 
-        self.broker = Broker()
-
     async def initialize(self) -> None:
-        self.broker.initialize()
         await self.broker.cancel_orders(self.TICKER)
         await self.update_balance()
         await self.calibrate_ratio()
@@ -84,10 +89,11 @@ class TradingBot:
         await self.run()
 
     async def stop(self) -> None:
-        self.state = self.State.STOPPING
+        if self.state == self.State.RUNNING:
+            self.state = self.State.STOPPING
 
-        while self.state != self.State.TERMINATED:
-            await asyncio.sleep(0.5)
+            while self.state != self.State.TERMINATED:
+                await asyncio.sleep(0.5)
 
     async def run(self) -> None:
         while self.state == self.State.RUNNING:
@@ -175,5 +181,8 @@ class TradingBot:
         value = self.quantity * price + self.cash
         return self.cash - value * ratio
 
-    def get_status(self) -> bool:
+    def is_running(self) -> bool:
         return self.state == self.State.RUNNING
+
+    def is_terminated(self) -> bool:
+        return self.state == self.State.TERMINATED

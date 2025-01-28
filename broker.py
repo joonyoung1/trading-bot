@@ -13,16 +13,16 @@ class Broker:
         self.SECRET = os.getenv("SECRET")
 
         self.upbit = pyupbit.Upbit(self.ACCESS, self.SECRET)
-    
-    def initialize(self) -> None:
-        self.loop = asyncio.get_running_loop()
-    
+
+    def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        self.loop = loop
+
     @retry()
     async def get_current_price(self, ticker) -> float:
         task = partial(pyupbit.get_current_price, ticker)
         price = await self.loop.run_in_executor(None, task)
         return float(price)
-    
+
     @retry()
     async def get_balance(self, ticker: str) -> float:
         task = partial(self.upbit.get_balance, ticker)
@@ -31,22 +31,24 @@ class Broker:
         if balance is None:
             raise ValueError("Balance is `None` instead of a float")
         return float(balance)
-    
+
     @retry()
     async def buy_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
         task = partial(self.upbit.buy_limit_order, ticker, price, quantity)
         return await self.loop.run_in_executor(None, task)
 
     @retry()
-    async def sell_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
+    async def sell_limit_order(
+        self, ticker: str, price: float, quantity: float
+    ) -> dict:
         task = partial(self.upbit.sell_limit_order, ticker, price, quantity)
         return await self.loop.run_in_executor(None, task)
-    
+
     @retry()
     async def buy_market_order(self, ticker: str, amount: float) -> dict:
         task = partial(self.upbit.buy_market_order, ticker, amount)
         return await self.loop.run_in_executor(None, task)
-    
+
     @retry()
     async def sell_market_order(self, ticker: str, quantity: float) -> dict:
         task = partial(self.upbit.sell_market_order, ticker, quantity)
