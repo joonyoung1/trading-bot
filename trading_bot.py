@@ -94,6 +94,8 @@ class TradingBot:
 
             while self.state != self.State.TERMINATED:
                 await asyncio.sleep(0.5)
+        else:
+            self.state = self.State.TERMINATED
 
     async def run(self) -> None:
         while self.state == self.State.RUNNING:
@@ -156,7 +158,7 @@ class TradingBot:
 
     async def wait_order_closed(self, uuid: str) -> None:
         while not await self.broker.check_order_closed(uuid):
-            asyncio.sleep(0.5)
+            await asyncio.sleep(0.5)
 
     def is_trade_profitable(self, price: float) -> bool:
         return abs(self.last_price - price) / self.last_price >= 0.005

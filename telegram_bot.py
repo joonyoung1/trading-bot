@@ -33,6 +33,7 @@ class TelegramBot:
 
         self.TOKEN = os.getenv("TOKEN")
         self.application = Application.builder().token(self.TOKEN).build()
+        self.execution_lock = asyncio.Lock()
 
         reply_keyboard = [[self.Button.TOGGLE, self.Button.DASHBOARD]]
         self.markup = ReplyKeyboardMarkup(
@@ -60,6 +61,16 @@ class TelegramBot:
         text = update.message.text
 
         if text == self.Button.TOGGLE:
+            await self.toggle_handler(update, context)
+
+        elif text == self.Button.DASHBOARD:
+            await self.dashboard_handler(update, context)
+
+    @retry()
+    async def toggle_handler(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        async with self.execution_lock:
             if self.trading_bot.is_running():
                 await update.message.reply_text(
                     f"Terminating Trading Bot ...",
@@ -83,11 +94,14 @@ class TelegramBot:
                     reply_markup=self.markup,
                 )
 
-        elif text == self.Button.DASHBOARD:
-            await update.message.reply_text(
-                f"Dashboard.",
-                reply_markup=self.markup,
-            )
+    @retry()
+    async def dashboard_handler(
+        self, update: Update, context: ContextTypes.DEFAULT_TYPE
+    ) -> None:
+        await update.message.reply_text(
+            f"Dashboard",
+            reply_markup=self.markup,
+        )
 
     async def start(self) -> None:
         await self.application.initialize()
