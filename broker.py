@@ -24,6 +24,11 @@ class Broker:
         return float(price)
 
     @retry()
+    async def get_balances(self) -> dict:
+        task = partial(self.upbit.get_balances)
+        return await self.loop.run_in_executor(None, task)
+
+    @retry()
     async def get_balance(self, ticker: str) -> float:
         task = partial(self.upbit.get_balance, ticker)
         balance = await self.loop.run_in_executor(None, task)

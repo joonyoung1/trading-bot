@@ -98,10 +98,8 @@ class TelegramBot:
     async def dashboard_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        await update.message.reply_text(
-            f"Dashboard",
-            reply_markup=self.markup,
-        )
+        pie_plot = await self.data_processor.generate_distribution_plot()
+        await update.message.reply_photo(pie_plot, reply_markup=self.markup)
 
     async def start(self) -> None:
         await self.application.initialize()
