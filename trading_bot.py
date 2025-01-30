@@ -63,6 +63,7 @@ class TradingBot:
 
             await self.wait_order_closed(order["uuid"])
             await self.update_balance()
+            self.record_trade()
 
     def set_optimal_last_price(self) -> None:
         min_volume = abs(self.calc_volume(self.last_price))
@@ -107,6 +108,7 @@ class TradingBot:
                 self.last_price = lower_price if bought else upper_price
                 self.update_pivot_price()
                 await self.update_balance()
+                self.record_trade()
 
         self.state = self.State.TERMINATED
 
@@ -188,3 +190,7 @@ class TradingBot:
 
     def is_terminated(self) -> bool:
         return self.state == self.State.TERMINATED
+
+    def record_trade(self) -> None:
+        value = self.cash + self.quantity * self.last_price
+        self.tracker.record_trade(value, self.last_price)
