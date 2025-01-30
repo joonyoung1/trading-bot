@@ -1,3 +1,4 @@
+import os
 import csv
 import pandas as pd
 from datetime import datetime, timedelta
@@ -7,6 +8,9 @@ from file_read_backwards import FileReadBackwards
 class Tracker:
     def __init__(self, filepath: str = "./history.csv"):
         self.filepath = filepath
+
+        if not os.path.exists(self.filepath):
+            open(self.filepath, "w").close()
 
     def record_trade(self, value: float, price: float, ratio: float) -> None:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
