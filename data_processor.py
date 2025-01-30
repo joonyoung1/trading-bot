@@ -48,3 +48,7 @@ class DataProcessor:
 
         buffer.seek(0)
         return buffer
+
+    def count_recent_trades(self) -> int:
+        df = self.tracker.get_recent_histories()
+        return len(df)
