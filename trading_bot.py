@@ -193,4 +193,5 @@ class TradingBot:
 
     def record_trade(self) -> None:
         value = self.cash + self.quantity * self.last_price
-        self.tracker.record_trade(value, self.last_price)
+        ratio = self.cash / value
+        self.tracker.record_trade(value, self.last_price, ratio)
