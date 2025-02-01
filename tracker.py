@@ -19,7 +19,7 @@ class Tracker:
             writer.writerow([timestamp, value, price, ratio])
 
     def get_recent_histories(self) -> pd.DataFrame:
-        time_limit = datetime.now() - timedelta(days=1)
+        time_limit = datetime.now() - timedelta(days=90)
         data = []
 
         with FileReadBackwards(self.filepath) as frb:
@@ -28,7 +28,7 @@ class Tracker:
                 if not line:
                     break
 
-                timestamp, value, price = line.split(",")
+                timestamp, value, price, ratio = line.split(",")
                 timestamp = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
                 if timestamp < time_limit:
                     break

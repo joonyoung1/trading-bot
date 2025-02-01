@@ -101,11 +101,8 @@ class TelegramBot:
         pie_plot = await self.data_processor.generate_distribution_plot()
         await update.message.reply_photo(pie_plot, reply_markup=self.markup)
 
-        n = self.data_processor.count_recent_trades()
-        await update.message.reply_text(
-            f"In the last 24 hours, {n} trades have been executed.",
-            reply_markup=self.markup
-        )
+        trend_plot = await self.data_processor.generate_trend_plot()
+        await update.message.reply_photo(trend_plot, reply_markup=self.markup)
 
     async def start(self) -> None:
         await self.application.initialize()
