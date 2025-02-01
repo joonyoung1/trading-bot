@@ -49,8 +49,8 @@ class DataProcessor:
         buffer.seek(0)
         return buffer
 
-    def generate_trend_plot(self) -> BytesIO:
-        df = self.tracker.get_recent_histories()
+    async def generate_trend_plot(self) -> BytesIO:
+        df = await self.tracker.get_recent_histories()
         df["value"] = (df["value"] / df["value"].iloc[0] - 1) * 100
         df["price"] = (df["price"] / df["price"].iloc[0] - 1) * 100
         df["ratio"] *= 100
