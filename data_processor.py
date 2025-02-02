@@ -55,46 +55,27 @@ class DataProcessor:
         df["price"] = (df["price"] / df["price"].iloc[0] - 1) * 100
         df["ratio"] *= 100
 
-        fig, ax1 = plt.subplots(figsize=(10, 5))
+        fig, ax1 = plt.subplots(figsize=(10, 6))
 
-        ax1.set_xlabel("Timestamp")
-        ax1.set_ylabel("Rate of Change (%)", color="tab:green")
+        ax1.set_ylabel("Cash Ratio (%)", color="tab:blue")
         ax1.plot(
-            df["timestamp"],
-            df["value"],
-            label="Value",
-            color="tab:green",
-            linestyle="-",
-        )
-        ax1.plot(
-            df["timestamp"],
-            df["price"],
-            label="Price",
-            color="tab:red",
-            linestyle="-",
-        )
-        ax1.tick_params(axis="y", labelcolor="tab:green")
-
-        ax2 = ax1.twinx()
-        ax2.set_ylabel("Cash Ratio (%)", color="tab:blue")
-        ax2.plot(
             df["timestamp"],
             df["ratio"],
             label="Ratio",
             color="tab:blue",
             linestyle="-.",
         )
-        ax2.tick_params(axis="y", labelcolor="tab:blue")
-        ax2.set_ylim(0, 100)
+        ax1.tick_params(axis="y", labelcolor="tab:blue")
+        ax1.set_ylim(0, 100)
 
-        ax2.fill_between(
+        ax1.fill_between(
             df["timestamp"],
             df["ratio"],
             100,
             color="lightcoral",
             alpha=0.3,
         )
-        ax2.fill_between(
+        ax1.fill_between(
             df["timestamp"],
             df["ratio"],
             0,
@@ -102,10 +83,38 @@ class DataProcessor:
             alpha=0.3,
         )
 
-        ax1.legend(loc="upper left")
-        ax2.legend(loc="upper right")
+        ax2 = ax1.twinx()
+        ax2.set_xlabel("Timestamp")
+        ax2.set_ylabel("Rate of Change (%)", color="tab:green")
+        ax2.plot(
+            df["timestamp"],
+            df["value"],
+            label="Value",
+            color="tab:green",
+            linestyle="-",
+        )
+        ax2.plot(
+            df["timestamp"],
+            df["price"],
+            label="Price",
+            color="tab:red",
+            linestyle="-",
+        )
+        ax2.tick_params(axis="y", labelcolor="tab:green")
+
+        handles1, labels1 = ax1.get_legend_handles_labels()
+        handles2, labels2 = ax2.get_legend_handles_labels()
+        combined_handles = handles1 + handles2
+        combined_labels = labels1 + labels2
+        fig.legend(
+            handles=combined_handles,
+            labels=combined_labels,
+            loc="upper left",
+            bbox_to_anchor=(0.07, 0.94),
+        )
 
         plt.title("Balance Trends")
+        plt.xlim(df["timestamp"].iloc[0], df["timestamp"].iloc[-1])
         fig.tight_layout()
 
         buffer = BytesIO()
