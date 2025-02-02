@@ -98,11 +98,12 @@ class TelegramBot:
     async def dashboard_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        pie_plot = await self.data_processor.generate_distribution_plot()
-        await update.message.reply_photo(pie_plot, reply_markup=self.markup)
-
-        trend_plot = await self.data_processor.generate_trend_plot()
+        trend_plot, n_recent_trades = await self.data_processor.process()
         await update.message.reply_photo(trend_plot, reply_markup=self.markup)
+        await update.message.reply_text(
+            f"{n_recent_trades} trades executed in the last 24 hours",
+            reply_markup=self.markup,
+        )
 
     async def start(self) -> None:
         await self.application.initialize()
