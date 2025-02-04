@@ -1,8 +1,10 @@
 import os
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import TYPE_CHECKING
+import textwrap
 
+from jinja2 import Template
 from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import (
     Application,
@@ -25,6 +27,22 @@ class TelegramBot:
         TOGGLE = "🔄 Toggle TradingBot"
         DASHBOARD = "📊 Dashboard"
 
+    template = Template(
+        textwrap.dedent(
+            """\
+            Estimated Profit: {{ format_currency(profit) }} ({{ format_rate(profit_rate) }})
+
+            Balance: {{ format_currency(balance) }} ({{ format_rate(balance_rate) }})
+            Cash: {{ format_currency(cash) }} ({{ format_rate(cash_rate) }})
+            Value: {{ format_currency(value) }} ({{ format_rate(value_rate) }})
+            Quantity: {{ quantity }} ({{ format_rate(quantity_rate) }})
+            Price: {{ format_currency(price) }} ({{ format_rate(price_rate) }})
+            
+            {{ n_trades }} trades executed (24h)
+            """
+        )
+    )
+
     def __init__(
         self, trading_bot: "TradingBot", data_processor: "DataProcessor"
     ) -> None:
@@ -34,6 +52,10 @@ class TelegramBot:
         self.TOKEN = os.getenv("TOKEN")
         self.application = Application.builder().token(self.TOKEN).build()
         self.execution_lock = asyncio.Lock()
+        self.template_data = {
+            "format_currency": self.format_currency,
+            "format_rate": self.format_rate,
+        }
 
         reply_keyboard = [[self.Button.TOGGLE, self.Button.DASHBOARD]]
         self.markup = ReplyKeyboardMarkup(
@@ -44,6 +66,19 @@ class TelegramBot:
         self.application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.message_handler)
         )
+
+    @staticmethod
+    def format_currency(value: float):
+        return f"₩{value:,.0f}"
+
+    @staticmethod
+    def format_rate(rate: float):
+        if rate > 0:
+            return f"📈 +{rate:.2f}%"
+        elif rate < 0:
+            return f"📉 {rate:.2f}%"
+        else:
+            return f"⚖️ {rate:.2f}%"
 
     @retry()
     async def start_handler(
@@ -98,10 +133,12 @@ class TelegramBot:
     async def dashboard_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
-        trend_plot, n_recent_trades = await self.data_processor.process()
-        await update.message.reply_photo(trend_plot, reply_markup=self.markup)
+        dashboard = await self.data_processor.process()
+        await update.message.reply_photo(dashboard.trend, reply_markup=self.markup)
+
+        self.template_data.update(**vars(dashboard.status))
         await update.message.reply_text(
-            f"{n_recent_trades} trades executed in the last 24 hours",
+            self.template.render(self.template_data),
             reply_markup=self.markup,
         )
 

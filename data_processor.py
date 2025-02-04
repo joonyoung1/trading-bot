@@ -19,25 +19,34 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Status:
+class Profit:
+    profit: float
+    profit_rate: float
+
+
+@dataclass
+class Balance:
     balance: float
-    balance_change_rate: float
-    cash: float
-    cash_change_rate: float
-    value: float
-    value_change_rate: float
-    quantity: float
-    quantity_change_rate: float
+    balance_rate: float
     price: float
-    price_change_rate: float
+    price_rate: float
+    cash: float
+    cash_rate: float
+    value: float
+    value_rate: float
+    quantity: float
+    quantity_rate: float
+
+
+@dataclass
+class Status(Profit, Balance):
+    n_trades: int
 
 
 @dataclass
 class Dashboard:
     trend: BytesIO
     status: Status
-    n_trades: int
-    estimated_balance: float
 
 
 class DataProcessor:
@@ -47,17 +56,14 @@ class DataProcessor:
 
     async def process(self) -> Dashboard:
         histories = await self.tracker.get_recent_histories()
-        trend_plot = self.generate_trend_plot(histories)
-        status = await self.get_current_status(histories)
-        n_trades = self.count_recent_trades(histories)
-        estimated_balance = self.estimate_balance_at_past_price(histories)
 
-        return Dashboard(
-            trend=trend_plot,
-            status=status,
-            n_trades=n_trades,
-            estimated_balance=estimated_balance,
-        )
+        trend_plot = self.generate_trend_plot(histories)
+        estimated_profit = self.estimate_balance_at_past_price(histories)
+        balance = await self.get_balance_status(histories)
+        n_trades = self.count_recent_trades(histories)
+
+        status = Status(**vars(estimated_profit), **vars(balance), n_trades=n_trades)
+        return Dashboard(trend=trend_plot, status=status)
 
     def generate_trend_plot(self, histories: pd.DataFrame) -> BytesIO:
         value_rate = (histories["value"] / histories["value"].iloc[0] - 1) * 100
@@ -134,7 +140,7 @@ class DataProcessor:
         buffer.seek(0)
         return buffer
 
-    async def get_current_status(self, histories: pd.DataFrame) -> Status:
+    async def get_balance_status(self, histories: pd.DataFrame) -> Balance:
         balances = await self.broker.get_balances()
         if balances[0]["currency"] == "KRW":
             cash_info, coin_info = balances[0], balances[1]
@@ -149,22 +155,22 @@ class DataProcessor:
 
         oldest = histories.iloc[0]
         _balance = oldest["value"]
+        _price = oldest["price"]
         _cash = _balance * oldest["ratio"]
         _value = _balance - _cash
-        _price = oldest["price"]
         _quantity = _value / _price
 
-        return Status(
+        return Balance(
             balance=balance,
             balance_change_rate=(balance / _balance - 1) * 100,
+            price=price,
+            price_change_rate=(price / _price - 1) * 100,
             cash=cash,
             cash_change_rate=(cash / _cash - 1) * 100,
             value=value,
             value_change_rate=(value / _value - 1) * 100,
             quantity=quantity,
             quantity_change_rate=(quantity / _quantity - 1) * 100,
-            price=price,
-            price_change_rate=(price / _price - 1) * 100,
         )
 
     def count_recent_trades(self, histories: pd.DataFrame) -> int:
@@ -173,8 +179,11 @@ class DataProcessor:
         start_idx = histories["timestamp"].searchsorted(cutoff, side="left")
         return len(histories) - start_idx
 
-    def estimate_balance_at_past_price(self, histories: pd.DataFrame) -> float:
+    def estimate_balance_at_past_price(
+        self, histories: pd.DataFrame
+    ) -> Profit:
         target_price = histories.iloc[0]["price"]
+        origin_balance = histories.iloc[0]["value"]
         current_price = histories.iloc[-1]["price"]
         current_balance = histories.iloc[-1]["value"]
 
@@ -185,4 +194,10 @@ class DataProcessor:
             return (1 - ratio) / price
 
         integral, _ = quad(integrand, current_price, target_price)
-        return current_balance * np.exp(integral)
+        estimated_balance = current_balance * np.exp(integral)
+        profit = estimated_balance - origin_balance
+
+        return Profit(
+            profit=profit,
+            profit_rate=(profit / origin_balance) * 100,
+        )
