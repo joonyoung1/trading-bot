@@ -109,15 +109,15 @@ class DataProcessor:
 
         return Balance(
             balance=balance,
-            balance_change_rate=(balance / _balance - 1) * 100,
+            balance_rate=(balance / _balance - 1) * 100,
             price=price,
-            price_change_rate=(price / _price - 1) * 100,
+            price_rate=(price / _price - 1) * 100,
             cash=cash,
-            cash_change_rate=(cash / _cash - 1) * 100,
+            cash_rate=(cash / _cash - 1) * 100,
             value=value,
-            value_change_rate=(value / _value - 1) * 100,
+            value_rate=(value / _value - 1) * 100,
             quantity=quantity,
-            quantity_change_rate=(quantity / _quantity - 1) * 100,
+            quantity_rate=(quantity / _quantity - 1) * 100,
         )
 
     def count_recent_trades(self, histories: pd.DataFrame) -> int:
