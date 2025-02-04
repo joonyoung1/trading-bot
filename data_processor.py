@@ -127,9 +127,8 @@ class DataProcessor:
         return len(histories) - start_idx
 
     def adaptive_sampling(self, histories: pd.DataFrame) -> pd.DataFrame:
-        unit = (
-            (histories["timestamp"].iloc[-1] - histories["timestamp"].iloc[0]) / 240
-        ).astype("int64")
+        time_diff = histories["timestamp"].iloc[-1] - histories["timestamp"].iloc[0]
+        unit = time_diff.total_seconds() * 1e9 / 240
         ts = histories["timestamp"].astype("int64").to_numpy()
 
         min_vals = np.empty(len(histories))
