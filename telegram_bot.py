@@ -1,6 +1,6 @@
 import os
 import asyncio
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 import textwrap
 
