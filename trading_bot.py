@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from utils import get_lower_price, get_upper_price
+from utils import get_lower_price, get_upper_price, calc_ratio
 from config import config
 
 if TYPE_CHECKING:
@@ -173,14 +173,7 @@ class TradingBot:
             config.set("PIVOT", self.last_price * 3)
 
     def calc_volume(self, price: float) -> float:
-        pivot_price = config.get("PIVOT")
-        if price >= pivot_price:
-            delta = price / pivot_price - 1
-            ratio = -0.5 * 2**-delta + 1
-        else:
-            delta = pivot_price / price - 1
-            ratio = 0.5 * 2**-delta
-
+        ratio = calc_ratio(price, config.get("PIVOT"))
         value = self.quantity * price + self.cash
         return self.cash - value * ratio
 

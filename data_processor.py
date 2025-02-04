@@ -2,9 +2,14 @@ from io import BytesIO
 from typing import TYPE_CHECKING
 from dataclasses import dataclass
 
+import numpy as np
+from scipy.integrate import quad
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
+
+from config import config
+from utils import calc_ratio
 
 matplotlib.use("Agg")
 
@@ -32,6 +37,7 @@ class Dashboard:
     trend: BytesIO
     status: Status
     n_trades: int
+    estimated_balance: float
 
 
 class DataProcessor:
@@ -41,12 +47,19 @@ class DataProcessor:
 
     async def process(self) -> Dashboard:
         histories = await self.tracker.get_recent_histories()
-        trend_plot = await self.generate_trend_plot(histories)
+        trend_plot = self.generate_trend_plot(histories)
         status = await self.get_current_status(histories)
         n_trades = self.count_recent_trades(histories)
-        return Dashboard(trend=trend_plot, status=status, n_trades=n_trades)
+        estimated_balance = self.estimate_balance_at_past_price(histories)
 
-    async def generate_trend_plot(self, histories: pd.DataFrame) -> BytesIO:
+        return Dashboard(
+            trend=trend_plot,
+            status=status,
+            n_trades=n_trades,
+            estimated_balance=estimated_balance,
+        )
+
+    def generate_trend_plot(self, histories: pd.DataFrame) -> BytesIO:
         value_rate = (histories["value"] / histories["value"].iloc[0] - 1) * 100
         price_rate = (histories["price"] / histories["price"].iloc[0] - 1) * 100
         ratio = histories["ratio"] * 100
@@ -121,12 +134,6 @@ class DataProcessor:
         buffer.seek(0)
         return buffer
 
-    def count_recent_trades(self, histories: pd.DataFrame) -> int:
-        latest = histories["timestamp"].iloc[-1]
-        cutoff = latest - pd.Timedelta(hours=24)
-        start_idx = histories["timestamp"].searchsorted(cutoff, side="left")
-        return len(histories) - start_idx
-
     async def get_current_status(self, histories: pd.DataFrame) -> Status:
         balances = await self.broker.get_balances()
         if balances[0]["currency"] == "KRW":
@@ -141,18 +148,11 @@ class DataProcessor:
         balance = cash + value
 
         oldest = histories.iloc[0]
-        print(oldest)
         _balance = oldest["value"]
         _cash = _balance * oldest["ratio"]
         _value = _balance - _cash
         _price = oldest["price"]
         _quantity = _value / _price
-
-        print(f"_balance: {_balance}")
-        print(f"_cash: {_cash}")
-        print(f"_value: {_value}")
-        print(f"_price: {_price}")
-        print(f"_quantity: {_quantity}")
 
         return Status(
             balance=balance,
@@ -167,22 +167,22 @@ class DataProcessor:
             price_change_rate=(price / _price - 1) * 100,
         )
 
+    def count_recent_trades(self, histories: pd.DataFrame) -> int:
+        latest = histories["timestamp"].iloc[-1]
+        cutoff = latest - pd.Timedelta(hours=24)
+        start_idx = histories["timestamp"].searchsorted(cutoff, side="left")
+        return len(histories) - start_idx
 
-if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv()
-    from broker import Broker
-    from tracker import Tracker
-    
-    async def main():
-        broker = Broker()
-        loop = asyncio.get_running_loop()
-        broker.set_loop(loop)
-        tracker = Tracker()
-        data_processor = DataProcessor(broker, tracker)
+    def estimate_balance_at_past_price(self, histories: pd.DataFrame) -> float:
+        target_price = histories.iloc[0]["price"]
+        current_price = histories.iloc[-1]["price"]
+        current_balance = histories.iloc[-1]["value"]
 
-        result = await data_processor.process()
-        from pprint import pprint
-        pprint(result.status)
-    import asyncio 
-    asyncio.run(main())
+        pivot_price = config.get("PIVOT")
+
+        def integrand(price: float):
+            ratio = calc_ratio(price, pivot_price)
+            return (1 - ratio) / price
+
+        integral, _ = quad(integrand, current_price, target_price)
+        return current_balance * np.exp(integral)
