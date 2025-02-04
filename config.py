@@ -1,3 +1,4 @@
+import os
 import json
 from typing import Any
 
@@ -6,6 +7,9 @@ class Config:
     def __init__(self, filepath: str = "./config.json") -> None:
         self.filepath = filepath
         self.config = self.load_config()
+
+        if "PIVOT" not in self.config:
+            self.set("PIVOT", float(os.getenv("PIVOT")))
 
     def load_config(self) -> dict:
         with open(self.filepath, "r") as file:

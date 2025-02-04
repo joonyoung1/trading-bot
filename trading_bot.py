@@ -31,7 +31,6 @@ class TradingBot:
 
         self.state = self.State.TERMINATED
         self.TICKER = os.getenv("TICKER")
-        self.pivot_price = config.get("PIVOT", float(os.getenv("PIVOT")))
 
     async def initialize(self) -> None:
         await self.broker.cancel_orders(self.TICKER)
@@ -166,20 +165,20 @@ class TradingBot:
         return abs(self.last_price - price) / self.last_price >= 0.005
 
     def update_pivot_price(self) -> None:
-        if self.last_price >= self.pivot_price * 3:
-            self.pivot_price = self.last_price / 3
-            config.set("PIVOT", self.pivot_price)
+        pivot_price = config.get("PIVOT")
+        if self.last_price >= pivot_price * 3:
+            config.set("PIVOT", self.last_price / 3)
 
-        elif self.pivot_price >= self.last_price * 3:
-            self.pivot_price = self.last_price * 3
-            config.set("PIVOT", self.pivot_price)
+        elif pivot_price >= self.last_price * 3:
+            config.set("PIVOT", self.last_price * 3)
 
     def calc_volume(self, price: float) -> float:
-        if price >= self.pivot_price:
-            delta = price / self.pivot_price - 1
+        pivot_price = config.get("PIVOT")
+        if price >= pivot_price:
+            delta = price / pivot_price - 1
             ratio = -0.5 * 2**-delta + 1
         else:
-            delta = self.pivot_price / price - 1
+            delta = pivot_price / price - 1
             ratio = 0.5 * 2**-delta
 
         value = self.quantity * price + self.cash
