@@ -8,7 +8,7 @@ from .manager import Manager
 
 
 def setting_logger() -> None:
-    log_dir = "./logs"
+    log_dir = os.getenv("LOG_DIR", "log")
     os.makedirs(log_dir, exist_ok=True)
 
     logging.basicConfig(

@@ -9,17 +9,18 @@ from schemas import Cols
 
 
 class Tracker:
-    def __init__(self, filepath: str = "./data/history.csv"):
-        self.filepath = filepath
+    def __init__(self, file_name: str = "history.csv"):
+        data_dir = os.getenv("DATA_DIR", "data")
+        self.file_path = os.path.join(data_dir, file_name)
         self.file_lock = asyncio.Lock()
 
-        if not os.path.exists(self.filepath):
-            open(self.filepath, "w").close()
+        if not os.path.exists(self.file_path):
+            open(self.file_path, "w").close()
 
     async def record_trade(self, value: float, price: float, ratio: float) -> None:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         async with self.file_lock:
-            with open(self.filepath, "a", newline="") as file:
+            with open(self.file_path, "a", newline="") as file:
                 writer = csv.writer(file)
                 writer.writerow([timestamp, value, price, ratio])
 
@@ -28,7 +29,7 @@ class Tracker:
         data = []
 
         async with self.file_lock:
-            with FileReadBackwards(self.filepath) as frb:
+            with FileReadBackwards(self.file_path) as frb:
                 while True:
                     line = frb.readline().strip()
                     if not line:
