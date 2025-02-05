@@ -1,11 +1,11 @@
 import asyncio
 import signal
 
-from telegram_bot import TelegramBot
-from trading_bot import TradingBot
-from data_processor import DataProcessor
-from tracker import Tracker
-from broker import Broker
+from .telegram_bot import TelegramBot
+from .trading_bot import TradingBot
+from .data_processor import DataProcessor
+from .tracker import Tracker
+from .broker import Broker
 
 
 class Manager:

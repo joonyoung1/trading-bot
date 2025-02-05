@@ -1,17 +1,24 @@
+import os
 import asyncio
-import logging.handlers
-from manager import Manager
 from dotenv import load_dotenv
 import logging
+from logging.handlers import RotatingFileHandler
+
+from .manager import Manager
 
 
 def setting_logger() -> None:
+    log_dir = "./logs"
+    os.makedirs(log_dir, exist_ok=True)
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         handlers=[
-            logging.handlers.RotatingFileHandler(
-                "app.log", maxBytes=1024 * 1024 * 5, backupCount=3
+            RotatingFileHandler(
+                os.path.join(log_dir, "app.log"),
+                maxBytes=1024 * 1024 * 5,
+                backupCount=3,
             )
         ],
     )

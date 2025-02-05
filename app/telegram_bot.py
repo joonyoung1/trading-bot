@@ -17,8 +17,8 @@ from telegram.ext import (
 from utils import retry
 
 if TYPE_CHECKING:
-    from trading_bot import TradingBot
-    from data_processor import DataProcessor
+    from app.trading_bot import TradingBot
+    from app.data_processor import DataProcessor
 
 
 class TelegramBot:

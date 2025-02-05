@@ -8,8 +8,8 @@ from utils import get_lower_price, get_upper_price, calc_ratio
 from config import config
 
 if TYPE_CHECKING:
-    from broker import Broker
-    from tracker import Tracker
+    from app.broker import Broker
+    from app.tracker import Tracker
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ from schemas import Cols
 
 
 class Tracker:
-    def __init__(self, filepath: str = "./history.csv"):
+    def __init__(self, filepath: str = "./data/history.csv"):
         self.filepath = filepath
         self.file_lock = asyncio.Lock()
 

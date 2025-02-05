@@ -1,6 +1,5 @@
 from io import BytesIO
 from typing import TYPE_CHECKING
-from dataclasses import dataclass
 
 import numpy as np
 from scipy.integrate import quad
@@ -15,8 +14,8 @@ from schemas import Cols, Profit, Balance, Status, Dashboard
 matplotlib.use("Agg")
 
 if TYPE_CHECKING:
-    from broker import Broker
-    from tracker import Tracker
+    from app.broker import Broker
+    from app.tracker import Tracker
 
 
 class DataProcessor:
