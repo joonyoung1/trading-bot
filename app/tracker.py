@@ -11,6 +11,8 @@ from schemas import Cols
 class Tracker:
     def __init__(self, file_name: str = "history.csv"):
         data_dir = os.getenv("DATA_DIR", "data")
+        os.makedirs(data_dir, exist_ok=True)
+
         self.file_path = os.path.join(data_dir, file_name)
         self.file_lock = asyncio.Lock()
 

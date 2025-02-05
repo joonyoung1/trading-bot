@@ -4,7 +4,7 @@ from typing import Any
 
 
 class Config:
-    def __init__(self, filepath: str = "./config.json") -> None:
+    def __init__(self, filepath: str = "config.json") -> None:
         self.filepath = filepath
         self.config = self.load_config()
 
