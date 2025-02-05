@@ -5,6 +5,8 @@ import asyncio
 from datetime import datetime, timedelta
 from file_read_backwards import FileReadBackwards
 
+from schemas import Cols
+
 
 class Tracker:
     def __init__(self, filepath: str = "./history.csv"):
@@ -32,16 +34,16 @@ class Tracker:
                     if not line:
                         break
 
-                    timestamp, value, price, ratio = line.split(",")
+                    timestamp, balance, price, ratio = line.split(",")
                     timestamp = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
                     if timestamp < time_limit:
                         break
 
-                    value = float(value)
+                    balance = float(balance)
                     price = float(price)
                     ratio = float(ratio)
-                    data.append([timestamp, value, price, ratio])
+                    data.append([timestamp, balance, price, ratio])
 
         return pd.DataFrame(
-            data[::-1], columns=["timestamp", "value", "price", "ratio"]
+            data[::-1], columns=[Cols.TS, Cols.BAL, Cols.P, Cols.R]
         )

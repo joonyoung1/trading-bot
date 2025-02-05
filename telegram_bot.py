@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 class TelegramBot:
     @dataclass(frozen=True)
     class Button:
-        TOGGLE = "🔄 Toggle TradingBot"
-        DASHBOARD = "📊 Dashboard"
+        TOGGLE: str = "🔄 Toggle TradingBot"
+        DASHBOARD: str = "📊 Dashboard"
 
     template = Template(
         textwrap.dedent(

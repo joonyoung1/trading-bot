@@ -10,43 +10,13 @@ import matplotlib
 
 from config import config
 from utils import calc_ratio
+from schemas import Cols, Profit, Balance, Status, Dashboard
 
 matplotlib.use("Agg")
 
 if TYPE_CHECKING:
     from broker import Broker
     from tracker import Tracker
-
-
-@dataclass
-class Profit:
-    profit: float
-    profit_rate: float
-
-
-@dataclass
-class Balance:
-    balance: float
-    balance_rate: float
-    price: float
-    price_rate: float
-    cash: float
-    cash_rate: float
-    value: float
-    value_rate: float
-    quantity: float
-    quantity_rate: float
-
-
-@dataclass
-class Status(Profit, Balance):
-    n_trades: int
-
-
-@dataclass
-class Dashboard:
-    status: Status
-    trend: BytesIO
 
 
 class DataProcessor:
@@ -67,10 +37,10 @@ class DataProcessor:
         return Dashboard(trend=trend_plot, status=status)
 
     def estimate_balance_at_past_price(self, histories: pd.DataFrame) -> Profit:
-        target_price = histories.iloc[0]["price"]
-        origin_balance = histories.iloc[0]["value"]
-        current_price = histories.iloc[-1]["price"]
-        current_balance = histories.iloc[-1]["value"]
+        target_price = histories.iloc[0][Cols.P]
+        origin_balance = histories.iloc[0][Cols.BAL]
+        current_price = histories.iloc[-1][Cols.P]
+        current_balance = histories.iloc[-1][Cols.BAL]
 
         pivot_price = config.get("PIVOT")
 
@@ -101,9 +71,9 @@ class DataProcessor:
         balance = cash + value
 
         oldest = histories.iloc[0]
-        _balance = oldest["value"]
-        _price = oldest["price"]
-        _cash = _balance * oldest["ratio"]
+        _balance = oldest[Cols.BAL]
+        _price = oldest[Cols.P]
+        _cash = _balance * oldest[Cols.R]
         _value = _balance - _cash
         _quantity = _value / _price
 
@@ -121,15 +91,15 @@ class DataProcessor:
         )
 
     def count_recent_trades(self, histories: pd.DataFrame) -> int:
-        latest = histories["timestamp"].iloc[-1]
+        latest = histories[Cols.TS].iloc[-1]
         cutoff = latest - pd.Timedelta(hours=24)
-        start_idx = histories["timestamp"].searchsorted(cutoff, side="left")
+        start_idx = histories[Cols.TS].searchsorted(cutoff, side="left")
         return len(histories) - start_idx
 
     def adaptive_sampling(self, histories: pd.DataFrame) -> pd.DataFrame:
-        time_diff = histories["timestamp"].iloc[-1] - histories["timestamp"].iloc[0]
+        time_diff = histories[Cols.TS].iloc[-1] - histories[Cols.TS].iloc[0]
         unit = time_diff.total_seconds() * 1e9 / 240
-        ts = histories["timestamp"].astype("int64").to_numpy()
+        ts = histories[Cols.TS].astype("int64").to_numpy()
 
         min_vals = np.empty(len(histories))
         max_vals = np.empty(len(histories))
@@ -142,11 +112,11 @@ class DataProcessor:
             while end_idx < len(histories) and ts[end_idx] - ts[i] < unit:
                 end_idx += 1
 
-            window = histories["price"].iloc[start_idx:end_idx]
+            window = histories[Cols.P].iloc[start_idx:end_idx]
             min_vals[i] = window.min()
             max_vals[i] = window.max()
 
-        prices = histories["price"].to_numpy()
+        prices = histories[Cols.P].to_numpy()
         is_extreme = (prices == min_vals) | (prices == max_vals)
         gap_mask = np.diff(ts, prepend=ts[0]) > unit
 
@@ -156,17 +126,17 @@ class DataProcessor:
         ]
 
     def generate_trend_plot(self, histories: pd.DataFrame) -> BytesIO:
-        value_rate = (histories["value"] / histories["value"].iloc[0] - 1) * 100
-        price_rate = (histories["price"] / histories["price"].iloc[0] - 1) * 100
-        ratio = histories["ratio"] * 100
+        value_rate = (histories[Cols.BAL] / histories[Cols.BAL].iloc[0] - 1) * 100
+        price_rate = (histories[Cols.P] / histories[Cols.P].iloc[0] - 1) * 100
+        ratio = histories[Cols.R] * 100
 
         fig, ax1 = plt.subplots(figsize=(10, 6))
 
         ax1.set_ylabel("Cash Ratio (%)", color="tab:blue")
         ax1.plot(
-            histories["timestamp"],
+            histories[Cols.TS],
             ratio,
-            label="Ratio",
+            label=Cols.R,
             color="tab:blue",
             linestyle="-.",
         )
@@ -174,14 +144,14 @@ class DataProcessor:
         ax1.set_ylim(0, 100)
 
         ax1.fill_between(
-            histories["timestamp"],
+            histories[Cols.TS],
             ratio,
             100,
             color="lightcoral",
             alpha=0.3,
         )
         ax1.fill_between(
-            histories["timestamp"],
+            histories[Cols.TS],
             ratio,
             0,
             color="lightblue",
@@ -189,19 +159,19 @@ class DataProcessor:
         )
 
         ax2 = ax1.twinx()
-        ax2.set_xlabel("Timestamp")
+        ax2.set_xlabel(Cols.TS)
         ax2.set_ylabel("Rate of Change (%)", color="tab:green")
         ax2.plot(
-            histories["timestamp"],
+            histories[Cols.TS],
             value_rate,
-            label="Value",
+            label=Cols.BAL,
             color="tab:green",
             linestyle="-",
         )
         ax2.plot(
-            histories["timestamp"],
+            histories[Cols.TS],
             price_rate,
-            label="Price",
+            label=Cols.P,
             color="tab:red",
             linestyle="-",
         )
@@ -220,7 +190,7 @@ class DataProcessor:
         )
 
         plt.title("Balance Trends")
-        plt.xlim(histories["timestamp"].iloc[0], histories["timestamp"].iloc[-1])
+        plt.xlim(histories[Cols.TS].iloc[0], histories[Cols.TS].iloc[-1])
         fig.tight_layout()
 
         buffer = BytesIO()
