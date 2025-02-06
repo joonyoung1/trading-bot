@@ -5,10 +5,11 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 from .manager import Manager
+from schemas import ConfigKeys
 
 
 def setting_logger() -> None:
-    log_dir = os.getenv("LOG_DIR", "log")
+    log_dir = os.getenv(ConfigKeys.LOG_DIR, "log")
     os.makedirs(log_dir, exist_ok=True)
 
     logging.basicConfig(

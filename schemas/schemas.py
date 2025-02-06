@@ -6,6 +6,21 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
+class ConfigKeys:
+    LOG_DIR: str = "LOG_DIR"
+    DATA_DIR: str = "DATA_DIR"
+
+    TOKEN: str = "TOKEN"
+    CHAT_ID: str = "CHAT_ID"
+
+    ACCESS: str = "ACCESS"
+    SECRET: str = "SECRET"
+    TICKER: str = "TICKER"
+    
+    PIVOT: str = "PIVOT"
+
+
+@dataclass(frozen=True)
 class Cols:
     TS: str = "timestamp"
     BAL: str = "balance"

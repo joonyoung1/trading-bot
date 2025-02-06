@@ -15,6 +15,7 @@ from telegram.ext import (
 )
 
 from utils import retry
+from schemas import ConfigKeys
 
 if TYPE_CHECKING:
     from app.trading_bot import TradingBot
@@ -49,7 +50,7 @@ class TelegramBot:
         self.trading_bot = trading_bot
         self.data_processor = data_processor
 
-        self.TOKEN = os.getenv("TOKEN")
+        self.TOKEN = os.getenv(ConfigKeys.TOKEN)
         self.application = Application.builder().token(self.TOKEN).build()
         self.execution_lock = asyncio.Lock()
         self.template_data = {

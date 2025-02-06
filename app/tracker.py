@@ -5,12 +5,12 @@ import asyncio
 from datetime import datetime, timedelta
 from file_read_backwards import FileReadBackwards
 
-from schemas import Cols
+from schemas import Cols, ConfigKeys
 
 
 class Tracker:
     def __init__(self, file_name: str = "history.csv"):
-        data_dir = os.getenv("DATA_DIR", "data")
+        data_dir = os.getenv(ConfigKeys.DATA_DIR, "data")
         os.makedirs(data_dir, exist_ok=True)
 
         self.file_path = os.path.join(data_dir, file_name)

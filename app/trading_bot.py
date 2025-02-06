@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from utils import get_lower_price, get_upper_price, calc_ratio
 from config import config
+from schemas import ConfigKeys
 
 if TYPE_CHECKING:
     from app.broker import Broker
@@ -30,7 +31,7 @@ class TradingBot:
         self.tracker = tracker
 
         self.state = self.State.TERMINATED
-        self.TICKER = os.getenv("TICKER")
+        self.TICKER = os.getenv(ConfigKeys.TICKER)
 
     async def initialize(self) -> None:
         await self.broker.cancel_orders(self.TICKER)
@@ -165,15 +166,15 @@ class TradingBot:
         return abs(self.last_price - price) / self.last_price >= 0.005
 
     def update_pivot_price(self) -> None:
-        pivot_price = config.get("PIVOT")
+        pivot_price = config.get(ConfigKeys.PIVOT)
         if self.last_price >= pivot_price * 3:
-            config.set("PIVOT", self.last_price / 3)
+            config.set(ConfigKeys.PIVOT, self.last_price / 3)
 
         elif pivot_price >= self.last_price * 3:
-            config.set("PIVOT", self.last_price * 3)
+            config.set(ConfigKeys.PIVOT, self.last_price * 3)
 
     def calc_volume(self, price: float) -> float:
-        ratio = calc_ratio(price, config.get("PIVOT"))
+        ratio = calc_ratio(price, config.get(ConfigKeys.PIVOT))
         value = self.quantity * price + self.cash
         return self.cash - value * ratio
 

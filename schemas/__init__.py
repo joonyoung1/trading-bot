@@ -1,1 +1,1 @@
-from .schemas import Cols, Profit, Balance, Status, Dashboard
+from .schemas import ConfigKeys, Cols, Profit, Balance, Status, Dashboard

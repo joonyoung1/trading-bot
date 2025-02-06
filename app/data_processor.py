@@ -9,7 +9,7 @@ import matplotlib
 
 from config import config
 from utils import calc_ratio
-from schemas import Cols, Profit, Balance, Status, Dashboard
+from schemas import ConfigKeys, Cols, Profit, Balance, Status, Dashboard
 
 matplotlib.use("Agg")
 
@@ -41,7 +41,7 @@ class DataProcessor:
         current_price = histories.iloc[-1][Cols.P]
         current_balance = histories.iloc[-1][Cols.BAL]
 
-        pivot_price = config.get("PIVOT")
+        pivot_price = config.get(ConfigKeys.PIVOT)
 
         def integrand(price: float):
             ratio = calc_ratio(price, pivot_price)
