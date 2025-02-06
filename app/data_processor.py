@@ -1,4 +1,6 @@
+import os
 from io import BytesIO
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -22,78 +24,91 @@ class DataProcessor:
     def __init__(self, broker: "Broker", tracker: "Tracker") -> None:
         self.broker = broker
         self.tracker = tracker
+        self.TICKER = os.getenv(ConfigKeys.TICKER)
 
-    async def process(self) -> Dashboard:
-        histories = await self.tracker.get_recent_histories()
-        estimated_profit = self.estimate_balance_at_past_price(histories)
-        balance = await self.get_balance_status(histories)
-        n_trades = self.count_recent_trades(histories)
+    async def construct_status(self, histories: pd.DataFrame) -> Status:
+        history_3m = histories.iloc[0]
 
-        histories = self.adaptive_sampling(histories)
-        trend_plot = self.generate_trend_plot(histories)
+        time_24h = datetime.now() - timedelta(hours=24)
+        idx_24h = histories[Cols.TS].searchsorted(time_24h)
+        history_24h = histories.iloc[idx_24h]
 
-        status = Status(**vars(estimated_profit), **vars(balance), n_trades=n_trades)
-        return Dashboard(trend=trend_plot, status=status)
+        cash = await self.broker.get_balance("KRW")
+        quantity = await self.broker.get_balance(self.TICKER)
+        current_price = await self.broker.get_current_price(f"KRW-{self.TICKER}")
+        current_balance = cash + quantity * current_price
 
-    def estimate_balance_at_past_price(self, histories: pd.DataFrame) -> Profit:
-        target_price = histories.iloc[0][Cols.P]
-        origin_balance = histories.iloc[0][Cols.BAL]
-        current_price = histories.iloc[-1][Cols.P]
-        current_balance = histories.iloc[-1][Cols.BAL]
+        estimated_balance_3m = self.estimate_balance_at_price(
+            current_balance, current_price, history_3m[Cols.P]
+        )
+        profit_3m, profit_rate_3m = self.calc_delta_rate(
+            estimated_balance_3m, current_balance
+        )
+        estimated_balance_24h = self.estimate_balance_at_price(
+            current_balance, current_price, history_24h[Cols.P]
+        )
+        profit_24h, profit_rate_24h = self.calc_delta_rate(
+            estimated_balance_24h, current_balance
+        )
 
+        balance_delta_3m, balance_rate_3m = self.calc_delta_rate(
+            current_balance, history_3m[Cols.BAL]
+        )
+        balance_delta_24h, balance_rate_24h = self.calc_delta_rate(
+            current_balance, history_24h[Cols.BAL]
+        )
+
+        price_delta_3m, price_rate_3m = self.calc_delta_rate(
+            current_price, history_3m[Cols.P]
+        )
+        price_delta_24h, price_rate_24h = self.calc_delta_rate(
+            current_price, history_24h[Cols.P]
+        )
+
+        return Status(
+            profit_3m=profit_3m,
+            profit_rate_3m=profit_rate_3m,
+            profit_24h=profit_24h,
+            profit_rate_24h=profit_rate_24h,
+            balance=current_balance,
+            balance_delta_3m=balance_delta_3m,
+            balance_rate_3m=balance_rate_3m,
+            balance_delta_24h=balance_delta_24h,
+            balance_rate_24h=balance_rate_24h,
+            price=current_price,
+            price_delta_3m=price_delta_3m,
+            price_rate_3m=price_rate_3m,
+            price_delta_24h=price_delta_24h,
+            price_rate_24h=price_rate_24h,
+        )
+
+    @staticmethod
+    def calc_delta_rate(pivot: float, comp: float) -> tuple[float, float]:
+        delta = pivot - comp
+        rate = delta / comp * 100
+        return delta, rate
+
+    @staticmethod
+    def estimate_balance_at_price(
+        balance: float, cur_price: float, target_price: float
+    ) -> float:
         pivot_price = config.get(ConfigKeys.PIVOT)
 
         def integrand(price: float):
             ratio = calc_ratio(price, pivot_price)
             return (1 - ratio) / price
 
-        integral, _ = quad(integrand, current_price, target_price)
-        estimated_balance = current_balance * np.exp(integral)
-        profit = estimated_balance - origin_balance
+        integral, _ = quad(integrand, cur_price, target_price)
+        return balance * np.exp(integral)
 
-        return Profit(
-            profit=profit,
-            profit_rate=(profit / origin_balance) * 100,
-        )
+    async def process(self) -> Dashboard:
+        histories = await self.tracker.get_recent_histories()
+        status = self.construct_status(histories)
 
-    async def get_balance_status(self, histories: pd.DataFrame) -> Balance:
-        balances = await self.broker.get_balances()
-        if balances[0]["currency"] == "KRW":
-            cash_info, coin_info = balances[0], balances[1]
-        else:
-            cash_info, coin_info = balances[1], balances[0]
+        histories = self.adaptive_sampling(histories)
+        trend_plot = self.generate_trend_plot(histories)
 
-        price = await self.broker.get_current_price(f"KRW-{coin_info['currency']}")
-        quantity = float(coin_info["balance"]) + float(coin_info["locked"])
-        value = price * quantity
-        cash = float(cash_info["balance"]) + float(cash_info["locked"])
-        balance = cash + value
-
-        oldest = histories.iloc[0]
-        _balance = oldest[Cols.BAL]
-        _price = oldest[Cols.P]
-        _cash = _balance * oldest[Cols.R]
-        _value = _balance - _cash
-        _quantity = _value / _price
-
-        return Balance(
-            balance=balance,
-            balance_rate=(balance / _balance - 1) * 100,
-            price=price,
-            price_rate=(price / _price - 1) * 100,
-            cash=cash,
-            cash_rate=(cash / _cash - 1) * 100,
-            value=value,
-            value_rate=(value / _value - 1) * 100,
-            quantity=quantity,
-            quantity_rate=(quantity / _quantity - 1) * 100,
-        )
-
-    def count_recent_trades(self, histories: pd.DataFrame) -> int:
-        latest = histories[Cols.TS].iloc[-1]
-        cutoff = latest - pd.Timedelta(hours=24)
-        start_idx = histories[Cols.TS].searchsorted(cutoff, side="left")
-        return len(histories) - start_idx
+        return Dashboard(trend=trend_plot, status=status)
 
     def adaptive_sampling(self, histories: pd.DataFrame) -> pd.DataFrame:
         time_diff = histories[Cols.TS].iloc[-1] - histories[Cols.TS].iloc[0]

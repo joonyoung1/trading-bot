@@ -16,7 +16,7 @@ class ConfigKeys:
     ACCESS: str = "ACCESS"
     SECRET: str = "SECRET"
     TICKER: str = "TICKER"
-    
+
     PIVOT: str = "PIVOT"
 
 
@@ -29,31 +29,26 @@ class Cols:
 
 
 @dataclass
-class Profit:
-    profit: float
-    profit_rate: float
+class Status:
+    profit_3m: float
+    profit_rate_3m: float
+    profit_24h: float
+    profit_rate_24h: float
 
-
-@dataclass
-class Balance:
     balance: float
-    balance_rate: float
+    balance_delta_3m: float
+    balance_rate_3m: float
+    balance_delta_24h: float
+    balance_rate_24h: float
+
     price: float
-    price_rate: float
-    cash: float
-    cash_rate: float
-    value: float
-    value_rate: float
-    quantity: float
-    quantity_rate: float
-
-
-@dataclass
-class Status(Profit, Balance):
-    n_trades: int
+    price_delta_3m: float
+    price_rate_3m: float
+    price_delta_24h: float
+    price_rate_24h: float
 
 
 @dataclass
 class Dashboard:
-    status: Status
     trend: "BytesIO"
+    status: Status

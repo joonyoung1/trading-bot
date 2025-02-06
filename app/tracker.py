@@ -49,4 +49,4 @@ class Tracker:
 
         return pd.DataFrame(
             data[::-1], columns=[Cols.TS, Cols.BAL, Cols.P, Cols.R]
-        )
+        ).astype({Cols.TS: "datetime64[ns]"})

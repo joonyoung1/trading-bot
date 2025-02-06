@@ -31,15 +31,17 @@ class TelegramBot:
     template = Template(
         textwrap.dedent(
             """\
-            Estimated Profit: {{ format_currency(profit) }} ({{ format_rate(profit_rate) }})
+            Estimated Profit
+                3M: {{ format_delta(profit_3m) }} ({{ format_rate(profit_rate_3m) }})
+                24H: {{ format_delta(profit_24h) }} ({{ format_rate(profit_rate_24h) }})
 
-            Balance: {{ format_currency(balance) }} ({{ format_rate(balance_rate) }})
-            Cash: {{ format_currency(cash) }} ({{ format_rate(cash_rate) }})
-            Value: {{ format_currency(value) }} ({{ format_rate(value_rate) }})
-            Quantity: {{ quantity }} ({{ format_rate(quantity_rate) }})
-            Price: {{ format_currency(price) }} ({{ format_rate(price_rate) }})
+            Balance: {{ format_currency(balance) }}
+                3M: {{ format_delta(balance_delta_3m) }} ({{ format_rate(balance_rate_3m) }})
+                24H: {{ format_delta(balance_delta_24h) }} ({{ format_rate(balance_rate_24h) }})
             
-            {{ n_trades }} trades executed (24h)
+            Price: {{ format_currency(price) }}
+                3M: {{ format_delta(price_delta_3m) }} ({{ format_rate(price_rate_3m) }})
+                24H: {{ format_delta(price_delta_24h) }} ({{ format_rate(price_rate_24h) }})
             """
         )
     )
@@ -71,6 +73,11 @@ class TelegramBot:
     @staticmethod
     def format_currency(value: float):
         return f"₩{value:,.0f}"
+
+    @staticmethod    
+    def format_delta(value: float):
+        if value >= 0:
+            return f"+{value:,.0f}"
 
     @staticmethod
     def format_rate(rate: float):
