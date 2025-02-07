@@ -6,6 +6,7 @@ import textwrap
 
 from jinja2 import Template
 from telegram import ReplyKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -31,17 +32,19 @@ class TelegramBot:
     template = Template(
         textwrap.dedent(
             """\
-            Estimated Profit
-                3M: {{ format_delta(profit_3m) }} ({{ format_rate(profit_rate_3m) }})
-                24H: {{ format_delta(profit_24h) }} ({{ format_rate(profit_rate_24h) }})
+            <code>&lt;Estimated Profit&gt;
+              24H: {{ format_value(profit_24h, True, True) }} {{ format_rate(profit_rate_24h) }}
+              3M:  {{ format_value(profit_3m, True, True) }} {{ format_rate(profit_rate_3m) }}
 
-            Balance: {{ format_currency(balance) }}
-                3M: {{ format_delta(balance_delta_3m) }} ({{ format_rate(balance_rate_3m) }})
-                24H: {{ format_delta(balance_delta_24h) }} ({{ format_rate(balance_rate_24h) }})
+            &lt;Balance&gt;
+              Now: {{ format_value(balance, False, True) }}
+              24H: {{ format_value(balance_delta_24h, True, True) }} {{ format_rate(balance_rate_24h) }}
+              3M:  {{ format_value(balance_delta_3m, True, True) }} {{ format_rate(balance_rate_3m) }}
             
-            Price: {{ format_currency(price) }}
-                3M: {{ format_delta(price_delta_3m) }} ({{ format_rate(price_rate_3m) }})
-                24H: {{ format_delta(price_delta_24h) }} ({{ format_rate(price_rate_24h) }})
+            &lt;Price&gt;
+              Now: {{ format_value(price, False, False) }}
+              24H: {{ format_value(price_delta_24h, True, False) }} {{ format_rate(price_rate_24h) }}
+              3M:  {{ format_value(price_delta_3m, True, False) }} {{ format_rate(price_rate_3m) }}</code>
             """
         )
     )
@@ -56,8 +59,7 @@ class TelegramBot:
         self.application = Application.builder().token(self.TOKEN).build()
         self.execution_lock = asyncio.Lock()
         self.template_data = {
-            "format_currency": self.format_currency,
-            "format_delta": self.format_delta,
+            "format_value": self.format_value,
             "format_rate": self.format_rate,
         }
 
@@ -72,22 +74,21 @@ class TelegramBot:
         )
 
     @staticmethod
-    def format_currency(value: float, decimal_places: int):
-        return f"₩{value:,.{decimal_places}f}".rstrip("0").rstrip(".")
+    def format_value(value: float, with_sign: bool, integer_only: bool) -> str:
+        postfix = "+" if with_sign and value >= 0 else ""
 
-    @staticmethod
-    def format_delta(value: float, decimal_places: int):
-        postfix = "+" if value >= 0 else ""
-        return postfix + TelegramBot.format_currency(value, decimal_places)
+        if integer_only:
+            formatted = f"{value:,.0f}"
+        else:
+            formatted = f"{value:,}".rstrip("0").rstrip(".")
+        return f"{postfix}{formatted}".rjust(12)
 
     @staticmethod
     def format_rate(rate: float):
-        if rate > 0:
-            return f"📈 +{rate:.2f}%"
-        elif rate < 0:
-            return f"📉 {rate:.2f}%"
+        if rate >= 0:
+            return f"(🔺+{rate:.2f}%)".rjust(12)
         else:
-            return f"⚖️ {rate:.2f}%"
+            return f"(🔻{rate:.2f}%)".rjust(12)
 
     @retry()
     async def start_handler(
@@ -149,6 +150,7 @@ class TelegramBot:
         await update.message.reply_text(
             self.template.render(self.template_data),
             reply_markup=self.markup,
+            parse_mode=ParseMode.HTML,
         )
 
     async def start(self) -> None:

@@ -35,7 +35,7 @@ class DataProcessor:
 
         cash = await self.broker.get_balance("KRW")
         quantity = await self.broker.get_balance(self.TICKER)
-        current_price = await self.broker.get_current_price(f"KRW-{self.TICKER}")
+        current_price = await self.broker.get_current_price(self.TICKER)
         current_balance = cash + quantity * current_price
 
         estimated_balance_3m = self.estimate_balance_at_price(
@@ -103,7 +103,7 @@ class DataProcessor:
 
     async def process(self) -> Dashboard:
         histories = await self.tracker.get_recent_histories()
-        status = self.construct_status(histories)
+        status = await self.construct_status(histories)
 
         histories = self.adaptive_sampling(histories)
         trend_plot = self.generate_trend_plot(histories)
