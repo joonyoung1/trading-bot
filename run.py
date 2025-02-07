@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import logging
 from logging.handlers import RotatingFileHandler
 
-from .manager import Manager
+from app.manager import Manager
 from schemas import ConfigKeys
 
 

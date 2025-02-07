@@ -11,7 +11,7 @@ import matplotlib
 
 from config import config
 from utils import calc_ratio
-from schemas import ConfigKeys, Cols, Profit, Balance, Status, Dashboard
+from schemas import ConfigKeys, Cols, Status, Dashboard
 
 matplotlib.use("Agg")
 

@@ -57,6 +57,7 @@ class TelegramBot:
         self.execution_lock = asyncio.Lock()
         self.template_data = {
             "format_currency": self.format_currency,
+            "format_delta": self.format_delta,
             "format_rate": self.format_rate,
         }
 
@@ -71,13 +72,13 @@ class TelegramBot:
         )
 
     @staticmethod
-    def format_currency(value: float):
-        return f"₩{value:,.0f}"
+    def format_currency(value: float, decimal_places: int):
+        return f"₩{value:,.{decimal_places}f}".rstrip("0").rstrip(".")
 
-    @staticmethod    
-    def format_delta(value: float):
-        if value >= 0:
-            return f"+{value:,.0f}"
+    @staticmethod
+    def format_delta(value: float, decimal_places: int):
+        postfix = "+" if value >= 0 else ""
+        return postfix + TelegramBot.format_currency(value, decimal_places)
 
     @staticmethod
     def format_rate(rate: float):
