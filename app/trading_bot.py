@@ -4,12 +4,13 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from utils import get_lower_price, get_upper_price
+from utils import get_lower_price, get_upper_price, calc_ratio
 from config import config
+from schemas import ConfigKeys
 
 if TYPE_CHECKING:
-    from broker import Broker
-    from tracker import Tracker
+    from app.broker import Broker
+    from app.tracker import Tracker
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,7 @@ class TradingBot:
         self.tracker = tracker
 
         self.state = self.State.TERMINATED
-        self.TICKER = os.getenv("TICKER")
-        self.pivot_price = config.get("PIVOT", float(os.getenv("PIVOT")))
+        self.TICKER = os.getenv(ConfigKeys.TICKER)
 
     async def initialize(self) -> None:
         await self.broker.cancel_orders(self.TICKER)
@@ -63,6 +63,7 @@ class TradingBot:
 
             await self.wait_order_closed(order["uuid"])
             await self.update_balance()
+            await self.record_trade()
 
     def set_optimal_last_price(self) -> None:
         min_volume = abs(self.calc_volume(self.last_price))
@@ -107,6 +108,7 @@ class TradingBot:
                 self.last_price = lower_price if bought else upper_price
                 self.update_pivot_price()
                 await self.update_balance()
+                await self.record_trade()
 
         self.state = self.State.TERMINATED
 
@@ -164,22 +166,15 @@ class TradingBot:
         return abs(self.last_price - price) / self.last_price >= 0.005
 
     def update_pivot_price(self) -> None:
-        if self.last_price >= self.pivot_price * 3:
-            self.pivot_price = self.last_price / 3
-            config.set("PIVOT", self.pivot_price)
+        pivot_price = config.get(ConfigKeys.PIVOT)
+        if self.last_price >= pivot_price * 3:
+            config.set(ConfigKeys.PIVOT, self.last_price / 3)
 
-        elif self.pivot_price >= self.last_price * 3:
-            self.pivot_price = self.last_price * 3
-            config.set("PIVOT", self.pivot_price)
+        elif pivot_price >= self.last_price * 3:
+            config.set(ConfigKeys.PIVOT, self.last_price * 3)
 
     def calc_volume(self, price: float) -> float:
-        if price >= self.pivot_price:
-            delta = price / self.pivot_price - 1
-            ratio = -0.5 * 2**-delta + 1
-        else:
-            delta = self.pivot_price / price - 1
-            ratio = 0.5 * 2**-delta
-
+        ratio = calc_ratio(price, config.get(ConfigKeys.PIVOT))
         value = self.quantity * price + self.cash
         return self.cash - value * ratio
 
@@ -188,3 +183,8 @@ class TradingBot:
 
     def is_terminated(self) -> bool:
         return self.state == self.State.TERMINATED
+
+    async def record_trade(self) -> None:
+        value = self.cash + self.quantity * self.last_price
+        ratio = self.cash / value
+        await self.tracker.record_trade(value, self.last_price, ratio)

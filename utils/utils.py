@@ -5,6 +5,18 @@ import functools
 import inspect
 import logging
 
+import numpy as np
+
+
+def calc_ratio(price: float, pivot_price: float):
+    if price >= pivot_price:
+        delta = (price / pivot_price) - 1
+        ratio = -0.5 * (2**-delta) + 1
+    else:
+        delta = (pivot_price / price) - 1
+        ratio = 0.5 * (2**-delta)
+    return np.clip(ratio, 0.125, 0.875)
+
 
 def retry(max_attempts: int = 3, delay: float = 1.0, exceptions=(Exception,)):
     def decorator(func):

@@ -5,14 +5,14 @@ from functools import partial
 import pyupbit
 
 from utils import retry
+from schemas import ConfigKeys
 
 
 class Broker:
     def __init__(self) -> None:
-        self.ACCESS = os.getenv("ACCESS")
-        self.SECRET = os.getenv("SECRET")
-
-        self.upbit = pyupbit.Upbit(self.ACCESS, self.SECRET)
+        access = os.getenv(ConfigKeys.ACCESS)
+        secret = os.getenv(ConfigKeys.SECRET)
+        self.upbit = pyupbit.Upbit(access, secret)
 
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         self.loop = loop
@@ -22,6 +22,11 @@ class Broker:
         task = partial(pyupbit.get_current_price, ticker)
         price = await self.loop.run_in_executor(None, task)
         return float(price)
+
+    @retry()
+    async def get_balances(self) -> dict:
+        task = partial(self.upbit.get_balances)
+        return await self.loop.run_in_executor(None, task)
 
     @retry()
     async def get_balance(self, ticker: str) -> float:

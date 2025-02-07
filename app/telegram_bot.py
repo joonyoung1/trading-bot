@@ -2,8 +2,11 @@ import os
 import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+import textwrap
 
+from jinja2 import Template
 from telegram import ReplyKeyboardMarkup, Update
+from telegram.constants import ParseMode
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -13,17 +16,38 @@ from telegram.ext import (
 )
 
 from utils import retry
+from schemas import ConfigKeys
 
 if TYPE_CHECKING:
-    from trading_bot import TradingBot
-    from data_processor import DataProcessor
+    from app.trading_bot import TradingBot
+    from app.data_processor import DataProcessor
 
 
 class TelegramBot:
     @dataclass(frozen=True)
     class Button:
-        TOGGLE = "🔄 Toggle TradingBot"
-        DASHBOARD = "📊 Dashboard"
+        TOGGLE: str = "🔄 Toggle TradingBot"
+        DASHBOARD: str = "📊 Dashboard"
+
+    template = Template(
+        textwrap.dedent(
+            """\
+            <code>&lt;Estimated Profit&gt;
+              24H: {{ format_value(profit_24h, True, True) }} {{ format_rate(profit_rate_24h) }}
+              3M:  {{ format_value(profit_3m, True, True) }} {{ format_rate(profit_rate_3m) }}
+
+            &lt;Balance&gt;
+              Now: {{ format_value(balance, False, True) }}
+              24H: {{ format_value(balance_delta_24h, True, True) }} {{ format_rate(balance_rate_24h) }}
+              3M:  {{ format_value(balance_delta_3m, True, True) }} {{ format_rate(balance_rate_3m) }}
+            
+            &lt;Price&gt;
+              Now: {{ format_value(price, False, False) }}
+              24H: {{ format_value(price_delta_24h, True, False) }} {{ format_rate(price_rate_24h) }}
+              3M:  {{ format_value(price_delta_3m, True, False) }} {{ format_rate(price_rate_3m) }}</code>
+            """
+        )
+    )
 
     def __init__(
         self, trading_bot: "TradingBot", data_processor: "DataProcessor"
@@ -31,9 +55,13 @@ class TelegramBot:
         self.trading_bot = trading_bot
         self.data_processor = data_processor
 
-        self.TOKEN = os.getenv("TOKEN")
+        self.TOKEN = os.getenv(ConfigKeys.TOKEN)
         self.application = Application.builder().token(self.TOKEN).build()
         self.execution_lock = asyncio.Lock()
+        self.template_data = {
+            "format_value": self.format_value,
+            "format_rate": self.format_rate,
+        }
 
         reply_keyboard = [[self.Button.TOGGLE, self.Button.DASHBOARD]]
         self.markup = ReplyKeyboardMarkup(
@@ -44,6 +72,23 @@ class TelegramBot:
         self.application.add_handler(
             MessageHandler(filters.TEXT & ~filters.COMMAND, self.message_handler)
         )
+
+    @staticmethod
+    def format_value(value: float, with_sign: bool, integer_only: bool) -> str:
+        postfix = "+" if with_sign and value >= 0 else ""
+
+        if integer_only:
+            formatted = f"{value:,.0f}"
+        else:
+            formatted = f"{value:,}".rstrip("0").rstrip(".")
+        return f"{postfix}{formatted}".rjust(12)
+
+    @staticmethod
+    def format_rate(rate: float):
+        if rate >= 0:
+            return f"(🔺+{rate:.2f}%)".rjust(12)
+        else:
+            return f"(🔻{rate:.2f}%)".rjust(12)
 
     @retry()
     async def start_handler(
@@ -98,9 +143,14 @@ class TelegramBot:
     async def dashboard_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
+        dashboard = await self.data_processor.process()
+        await update.message.reply_photo(dashboard.trend, reply_markup=self.markup)
+
+        self.template_data.update(**vars(dashboard.status))
         await update.message.reply_text(
-            f"Dashboard",
+            self.template.render(self.template_data),
             reply_markup=self.markup,
+            parse_mode=ParseMode.HTML,
         )
 
     async def start(self) -> None:
