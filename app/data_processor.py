@@ -42,13 +42,13 @@ class DataProcessor:
             current_balance, current_price, history_3m[Cols.P]
         )
         profit_3m, profit_rate_3m = self.calc_delta_rate(
-            estimated_balance_3m, current_balance
+            estimated_balance_3m, history_3m[Cols.BAL]
         )
         estimated_balance_24h = self.estimate_balance_at_price(
             current_balance, current_price, history_24h[Cols.P]
         )
         profit_24h, profit_rate_24h = self.calc_delta_rate(
-            estimated_balance_24h, current_balance
+            estimated_balance_24h, history_24h[Cols.BAL]
         )
 
         balance_delta_3m, balance_rate_3m = self.calc_delta_rate(
