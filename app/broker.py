@@ -15,7 +15,7 @@ class Broker:
         self.ACCESS = os.getenv(ConfigKeys.ACCESS)
         self.SECRET = os.getenv(ConfigKeys.SECRET)
         self.base_url = "https://api.upbit.com"
-    
+
     def initialize(self):
         self.session = aiohttp.ClientSession()
 
@@ -99,7 +99,7 @@ class Broker:
 
         response = await self.request("POST", url, json=params, headers=headers)
         return Order.model_validate(response)
-    
+
     async def cancel_order(self, uuid: str) -> None:
         params = {"uuid": uuid}
         headers = {"Authorization": self.generate_authorization(params=params)}
@@ -129,26 +129,3 @@ class Broker:
             payload["query_hash_alg"] = "SHA512"
 
         return f"Bearer {jwt.encode(payload, self.SECRET)}"
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    async def main():
-        try:
-            broker = Broker()
-            ticker = os.getenv(ConfigKeys.TICKER)
-
-            # res = await broker.get_current_price(ticker)
-            res = await broker.get_balances()
-            # res = await broker.cancel_orders(ticker)
-            # res = await broker.place_order(ticker, "bid", "limit", price=1000, volume=5)
-            # res = await broker.place_order(ticker, "ask", "limit", price=4000, volume=5)
-            # res = await broker.sell_market_order(ticker, 2)
-            # res = await broker.get_orders(["4ae80662-461b-4cc6-af98-210bb619d579"])
-            # res = await broker.get_order("4ae80662-461b-4cc6-af98-210bb619d579")
-            print(res)
-        finally:
-            await broker.close()
-
-    asyncio.run(main())

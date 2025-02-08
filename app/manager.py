@@ -34,3 +34,4 @@ class Manager:
 
         finally:
             await self.telegram_bot.stop()
+            await self.broker.close()

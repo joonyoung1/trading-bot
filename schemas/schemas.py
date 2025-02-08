@@ -49,12 +49,12 @@ class Order(BaseModel):
     uuid: str
     side: str
     ord_type: str
-    price: float
+    price: float | None = None
     state: str
     market: str
     created_at: datetime
-    volume: float
-    remaining_volume: float
+    volume: float | None = None
+    remaining_volume: float | None = None
     reserved_fee: float
     remaining_fee: float
     paid_fee: float
