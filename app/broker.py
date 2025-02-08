@@ -33,7 +33,28 @@ class Broker:
         url = urljoin(self.base_url, "/v1/accounts")
         return await self.request("GET", url, headers=headers)
 
+    async def cancel_orders(self, ticker: str):
+        params = {
+            "pairs": ticker,
+        }
+        query_string = urlencode(params, doseq=True).encode("utf-8")
 
+        m = hashlib.sha512()
+        m.update(query_string)
+        query_hash = m.hexdigest()
+
+        payload = {
+            "access_key": self.ACCESS,
+            "nonce": str(uuid.uuid4()),
+            "query_hash": query_hash,
+            "query_hash_alg": "SHA512",
+        }
+        headers = {
+            "Authorization": f"Bearer {jwt.encode(payload, self.SECRET)}",
+        }
+
+        url = urljoin(self.base_url, "/v1/orders/open")
+        return await self.request("DELETE", url, params=params, headers=headers)
 
     async def close(self):
         await self.session.close()
@@ -45,7 +66,7 @@ if __name__ == "__main__":
     async def main():
         broker = Broker()
 
-        res = await broker.get_balances()
+        res = await broker.cancel_orders(os.getenv(ConfigKeys.TICKER))
         print(res)
 
         await broker.close()
