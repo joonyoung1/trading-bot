@@ -1,96 +1,128 @@
 import os
-import asyncio
-from functools import partial
+import jwt
+import hashlib
+import uuid
+from typing import Literal
 
-import pyupbit
+import aiohttp
+from urllib.parse import urljoin, urlencode, unquote
 
-from utils import retry
 from schemas import ConfigKeys
 
 
 class Broker:
-    def __init__(self) -> None:
-        access = os.getenv(ConfigKeys.ACCESS)
-        secret = os.getenv(ConfigKeys.SECRET)
-        self.upbit = pyupbit.Upbit(access, secret)
+    def __init__(self):
+        self.ACCESS = os.getenv(ConfigKeys.ACCESS)
+        self.SECRET = os.getenv(ConfigKeys.SECRET)
 
-    def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
-        self.loop = loop
+        self.base_url = "https://api.upbit.com"
+        self.session = aiohttp.ClientSession()
 
-    @retry()
-    async def get_current_price(self, ticker) -> float:
-        task = partial(pyupbit.get_current_price, ticker)
-        price = await self.loop.run_in_executor(None, task)
-        return float(price)
+    async def request(
+        self, method: Literal["GET", "POST", "DELETE"], url: str, **kwargs
+    ):
+        async with self.session.request(method=method, url=url, **kwargs) as response:
+            return await response.json()
 
-    @retry()
-    async def get_balances(self) -> dict:
-        task = partial(self.upbit.get_balances)
-        return await self.loop.run_in_executor(None, task)
+    async def get_current_price(self, ticker: str) -> float:
+        params = {"markets": ticker}
+        url = urljoin(self.base_url, "/v1/ticker")
+        response = await self.request("GET", url, params=params)
+        return response[0]["trade_price"]
 
-    @retry()
-    async def get_balance(self, ticker: str) -> float:
-        task = partial(self.upbit.get_balance, ticker)
-        balance = await self.loop.run_in_executor(None, task)
+    async def get_order(self, uuid: str):
+        params = {"uuid": uuid}
+        headers = {"Authorization": self.generate_authorization(params=params)}
+        url = urljoin(self.base_url, "/v1/order")
+        return await self.request("GET", url, params=params, headers=headers)
 
-        if balance is None:
-            raise ValueError("Balance is `None` instead of a float")
-        return float(balance)
+    async def get_orders(self, uuids: list[str]):
+        params = {"uuids[]": uuids}
+        headers = {"Authorization": self.generate_authorization(params=params)}
+        url = urljoin(self.base_url, "/v1/orders/uuids")
+        return await self.request("GET", url, params=params, headers=headers)
 
-    @retry()
-    async def buy_limit_order(self, ticker: str, price: float, quantity: float) -> dict:
-        task = partial(self.upbit.buy_limit_order, ticker, price, quantity)
-        return await self.loop.run_in_executor(None, task)
+    async def get_balances(self):
+        headers = {"Authorization": self.generate_authorization()}
+        url = urljoin(self.base_url, "/v1/accounts")
+        return await self.request("GET", url, headers=headers)
 
-    @retry()
-    async def sell_limit_order(
-        self, ticker: str, price: float, quantity: float
-    ) -> dict:
-        task = partial(self.upbit.sell_limit_order, ticker, price, quantity)
-        return await self.loop.run_in_executor(None, task)
-
-    @retry()
-    async def buy_market_order(self, ticker: str, amount: float) -> dict:
-        task = partial(self.upbit.buy_market_order, ticker, amount)
-        return await self.loop.run_in_executor(None, task)
-
-    @retry()
-    async def sell_market_order(self, ticker: str, quantity: float) -> dict:
-        task = partial(self.upbit.sell_market_order, ticker, quantity)
-        return await self.loop.run_in_executor(None, task)
-
-    @retry()
-    async def check_order_closed(self, uuid: str) -> bool:
-        order = await self.get_order(uuid)
-        return order is not None and (
-            order["state"] == "done" or order["state"] == "cancel"
+    async def buy_limit_order(self, ticker: str, price: float, volume: float):
+        return await self.place_order(
+            ticker, "bid", "limit", price=price, volume=volume
         )
 
-    @retry()
-    async def get_order(self, uuid_or_ticker: str) -> dict:
-        task = partial(self.upbit.get_order, uuid_or_ticker)
-        return await self.loop.run_in_executor(None, task)
+    async def sell_limit_order(self, ticker: str, price: float, volume: float):
+        return await self.place_order(
+            ticker, "ask", "limit", price=price, volume=volume
+        )
 
-    @retry()
-    async def cancel_orders(self, ticker: str) -> None:
-        response = await self.get_order(ticker)
-        if isinstance(response, dict) and "error" in response:
-            error = response["error"]
-            error_name = error.get("name", "Unknown error")
-            error_message = error.get("message", "No error message provided")
-            raise ConnectionError(f"Error: {error_name} - {error_message}")
+    async def buy_market_order(self, ticker: str, price: float):
+        return await self.place_order(ticker, "bid", "price", price=price)
 
-        for order in response:
-            uuid = order["uuid"]
-            await self.cancel_order(uuid)
+    async def sell_market_order(self, ticker: str, volume: float):
+        return await self.place_order(ticker, "ask", "market", volume=volume)
 
-        for order in response:
-            uuid = order["uuid"]
+    async def place_order(
+        self,
+        ticker: str,
+        side: Literal["bid", "ask"],
+        ord_type: Literal["limit", "price", "market"],
+        price: float | None = None,
+        volume: float | None = None,
+    ):
+        params = {"market": ticker, "side": side, "ord_type": ord_type}
+        if price:
+            params["price"] = price
+        if volume:
+            params["volume"] = volume
 
-            while not await self.check_order_closed(uuid):
-                await asyncio.sleep(0.5)
+        headers = {"Authorization": self.generate_authorization(params=params)}
+        url = urljoin(self.base_url, "/v1/orders")
+        return await self.request("POST", url, json=params, headers=headers)
 
-    @retry()
-    async def cancel_order(self, uuid: str) -> None:
-        task = partial(self.upbit.cancel_order, uuid)
-        await self.loop.run_in_executor(None, task)
+    async def cancel_orders(self, ticker: str):
+        params = {"pairs": ticker}
+        headers = {"Authorization": self.generate_authorization(params=params)}
+        url = urljoin(self.base_url, "/v1/orders/open")
+        return await self.request("DELETE", url, params=params, headers=headers)
+
+    async def close(self):
+        await self.session.close()
+
+    @staticmethod
+    def params_to_query_hash(params: dict):
+        query_string = unquote(urlencode(params, doseq=True)).encode("utf-8")
+        m = hashlib.sha512()
+        m.update(query_string)
+        return m.hexdigest()
+
+    def generate_authorization(self, params: dict | None = None):
+        payload = {"access_key": self.ACCESS, "nonce": str(uuid.uuid4())}
+        if params:
+            payload["query_hash"] = self.params_to_query_hash(params)
+            payload["query_hash_alg"] = "SHA512"
+
+        return f"Bearer {jwt.encode(payload, self.SECRET)}"
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    async def main():
+        broker = Broker()
+        ticker = os.getenv(ConfigKeys.TICKER)
+
+        # res = await broker.get_current_price(ticker)
+        # res = await broker.get_balances()
+        # res = await broker.cancel_orders(ticker)
+        # res = await broker.place_order(ticker, "bid", "limit", price=1000, volume=5)
+        # res = await broker.place_order(ticker, "ask", "limit", price=4000, volume=5)
+        # res = await broker.sell_market_order(ticker, 2)
+        # res = await broker.get_orders(["9dcd793e-fe23-4dcd-b3d3-e59fed220206"])
+        res = await broker.get_order("9dcd793e-fe23-4dcd-b3d3-e59fed220206")
+        print(res)
+
+        await broker.close()
+
+    asyncio.run(main())
