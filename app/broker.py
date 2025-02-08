@@ -7,7 +7,7 @@ from typing import Literal
 import aiohttp
 from urllib.parse import urljoin, urlencode, unquote
 
-from schemas import ConfigKeys
+from schemas import ConfigKeys, Balance, Order
 
 
 class Broker:
@@ -27,40 +27,47 @@ class Broker:
     async def get_current_price(self, ticker: str) -> float:
         params = {"markets": ticker}
         url = urljoin(self.base_url, "/v1/ticker")
+
         response = await self.request("GET", url, params=params)
         return response[0]["trade_price"]
 
-    async def get_order(self, uuid: str):
+    async def get_balances(self) -> list[Balance]:
+        headers = {"Authorization": self.generate_authorization()}
+        url = urljoin(self.base_url, "/v1/accounts")
+
+        response = await self.request("GET", url, headers=headers)
+        return [Balance.model_validate(item) for item in response]
+
+    async def get_order(self, uuid: str) -> Order:
         params = {"uuid": uuid}
         headers = {"Authorization": self.generate_authorization(params=params)}
         url = urljoin(self.base_url, "/v1/order")
-        return await self.request("GET", url, params=params, headers=headers)
 
-    async def get_orders(self, uuids: list[str]):
+        response = await self.request("GET", url, params=params, headers=headers)
+        return Order.model_validate(response)
+
+    async def get_orders(self, uuids: list[str]) -> list[Order]:
         params = {"uuids[]": uuids}
         headers = {"Authorization": self.generate_authorization(params=params)}
         url = urljoin(self.base_url, "/v1/orders/uuids")
-        return await self.request("GET", url, params=params, headers=headers)
 
-    async def get_balances(self):
-        headers = {"Authorization": self.generate_authorization()}
-        url = urljoin(self.base_url, "/v1/accounts")
-        return await self.request("GET", url, headers=headers)
+        response = await self.request("GET", url, params=params, headers=headers)
+        return [Order.model_validate(item) for item in response]
 
-    async def buy_limit_order(self, ticker: str, price: float, volume: float):
+    async def buy_limit_order(self, ticker: str, price: float, volume: float) -> Order:
         return await self.place_order(
             ticker, "bid", "limit", price=price, volume=volume
         )
 
-    async def sell_limit_order(self, ticker: str, price: float, volume: float):
+    async def sell_limit_order(self, ticker: str, price: float, volume: float) -> Order:
         return await self.place_order(
             ticker, "ask", "limit", price=price, volume=volume
         )
 
-    async def buy_market_order(self, ticker: str, price: float):
+    async def buy_market_order(self, ticker: str, price: float) -> Order:
         return await self.place_order(ticker, "bid", "price", price=price)
 
-    async def sell_market_order(self, ticker: str, volume: float):
+    async def sell_market_order(self, ticker: str, volume: float) -> Order:
         return await self.place_order(ticker, "ask", "market", volume=volume)
 
     async def place_order(
@@ -70,7 +77,7 @@ class Broker:
         ord_type: Literal["limit", "price", "market"],
         price: float | None = None,
         volume: float | None = None,
-    ):
+    ) -> Order:
         params = {"market": ticker, "side": side, "ord_type": ord_type}
         if price:
             params["price"] = price
@@ -79,12 +86,15 @@ class Broker:
 
         headers = {"Authorization": self.generate_authorization(params=params)}
         url = urljoin(self.base_url, "/v1/orders")
-        return await self.request("POST", url, json=params, headers=headers)
 
-    async def cancel_orders(self, ticker: str):
+        response = await self.request("POST", url, json=params, headers=headers)
+        return Order.model_validate(response)
+
+    async def cancel_orders(self, ticker: str) -> None:
         params = {"pairs": ticker}
         headers = {"Authorization": self.generate_authorization(params=params)}
         url = urljoin(self.base_url, "/v1/orders/open")
+
         return await self.request("DELETE", url, params=params, headers=headers)
 
     async def close(self):
@@ -110,19 +120,20 @@ if __name__ == "__main__":
     import asyncio
 
     async def main():
-        broker = Broker()
-        ticker = os.getenv(ConfigKeys.TICKER)
+        try:
+            broker = Broker()
+            ticker = os.getenv(ConfigKeys.TICKER)
 
-        # res = await broker.get_current_price(ticker)
-        # res = await broker.get_balances()
-        # res = await broker.cancel_orders(ticker)
-        # res = await broker.place_order(ticker, "bid", "limit", price=1000, volume=5)
-        # res = await broker.place_order(ticker, "ask", "limit", price=4000, volume=5)
-        # res = await broker.sell_market_order(ticker, 2)
-        # res = await broker.get_orders(["9dcd793e-fe23-4dcd-b3d3-e59fed220206"])
-        res = await broker.get_order("9dcd793e-fe23-4dcd-b3d3-e59fed220206")
-        print(res)
-
-        await broker.close()
+            # res = await broker.get_current_price(ticker)
+            # res = await broker.get_balances()
+            res = await broker.cancel_orders(ticker)
+            # res = await broker.place_order(ticker, "bid", "limit", price=1000, volume=5)
+            # res = await broker.place_order(ticker, "ask", "limit", price=4000, volume=5)
+            # res = await broker.sell_market_order(ticker, 2)
+            # res = await broker.get_orders(["4ae80662-461b-4cc6-af98-210bb619d579"])
+            # res = await broker.get_order("4ae80662-461b-4cc6-af98-210bb619d579")
+            print(res)
+        finally:
+            await broker.close()
 
     asyncio.run(main())
