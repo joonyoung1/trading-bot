@@ -1,6 +1,6 @@
 import os
 import asyncio
-from dataclasses import dataclass
+from enum import Enum
 from typing import TYPE_CHECKING
 import textwrap
 
@@ -24,10 +24,9 @@ if TYPE_CHECKING:
 
 
 class TelegramBot:
-    @dataclass(frozen=True)
-    class Button:
-        TOGGLE: str = "🔄 Toggle TradingBot"
-        DASHBOARD: str = "📊 Dashboard"
+    class Button(str, Enum):
+        TOGGLE = "🔄 Toggle TradingBot"
+        DASHBOARD = "📊 Dashboard"
 
     template = Template(
         textwrap.dedent(

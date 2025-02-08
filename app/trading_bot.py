@@ -1,7 +1,7 @@
 import asyncio
 import os
 import logging
-from dataclasses import dataclass
+from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from utils import get_lower_price, get_upper_price, calc_ratio
@@ -19,12 +19,11 @@ class NotInitializedError(Exception): ...
 
 
 class TradingBot:
-    @dataclass(frozen=True)
-    class State:
-        INITIALIZED = 0
-        RUNNING = 1
-        STOPPING = 2
-        TERMINATED = 3
+    class State(Enum):
+        INITIALIZED = auto()
+        RUNNING = auto()
+        STOPPING = auto()
+        TERMINATED = auto()
 
     def __init__(self, broker: "Broker", tracker: "Tracker") -> None:
         self.broker = broker

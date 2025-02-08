@@ -1,3 +1,4 @@
+from enum import Enum
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -5,23 +6,18 @@ if TYPE_CHECKING:
     from io import BytesIO
 
 
-@dataclass(frozen=True)
-class ConfigKeys:
+class ConfigKeys(str, Enum):
     LOG_DIR: str = "LOG_DIR"
     DATA_DIR: str = "DATA_DIR"
-
     TOKEN: str = "TOKEN"
     CHAT_ID: str = "CHAT_ID"
-
     ACCESS: str = "ACCESS"
     SECRET: str = "SECRET"
     TICKER: str = "TICKER"
-
     PIVOT: str = "PIVOT"
 
 
-@dataclass(frozen=True)
-class Cols:
+class Cols(str, Enum):
     TS: str = "timestamp"
     BAL: str = "balance"
     P: str = "price"
