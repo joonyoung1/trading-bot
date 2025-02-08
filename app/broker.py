@@ -31,12 +31,20 @@ class Broker:
         response = await self.request("GET", url, params=params)
         return response[0]["trade_price"]
 
-    async def get_balances(self) -> list[Balance]:
+    async def get_balances(self) -> dict[str, Balance]:
         headers = {"Authorization": self.generate_authorization()}
         url = urljoin(self.base_url, "/v1/accounts")
 
         response = await self.request("GET", url, headers=headers)
-        return [Balance.model_validate(item) for item in response]
+        balances = [Balance.model_validate(item) for item in response]
+        return {
+            (
+                balance.currency
+                if balance.currency == "KRW"
+                else f"{balance.unit_currency}-{balance.currency}"
+            ): balance
+            for balance in balances
+        }
 
     async def get_order(self, uuid: str) -> Order:
         params = {"uuid": uuid}
@@ -46,13 +54,14 @@ class Broker:
         response = await self.request("GET", url, params=params, headers=headers)
         return Order.model_validate(response)
 
-    async def get_orders(self, uuids: list[str]) -> list[Order]:
+    async def get_orders(self, uuids: list[str]) -> dict[str, Order]:
         params = {"uuids[]": uuids}
         headers = {"Authorization": self.generate_authorization(params=params)}
         url = urljoin(self.base_url, "/v1/orders/uuids")
 
         response = await self.request("GET", url, params=params, headers=headers)
-        return [Order.model_validate(item) for item in response]
+        orders = [Order.model_validate(item) for item in response]
+        return {order.uuid: order for order in orders}
 
     async def buy_limit_order(self, ticker: str, price: float, volume: float) -> Order:
         return await self.place_order(
@@ -89,12 +98,17 @@ class Broker:
 
         response = await self.request("POST", url, json=params, headers=headers)
         return Order.model_validate(response)
+    
+    async def cancel_order(self, uuid: str) -> None:
+        params = {"uuid": uuid}
+        headers = {"Authorization": self.generate_authorization(params=params)}
+        url = urljoin(self.base_url, "/v1/order")
+        return await self.request("DELETE", url, params=params, headers=headers)
 
     async def cancel_orders(self, ticker: str) -> None:
         params = {"pairs": ticker}
         headers = {"Authorization": self.generate_authorization(params=params)}
         url = urljoin(self.base_url, "/v1/orders/open")
-
         return await self.request("DELETE", url, params=params, headers=headers)
 
     async def close(self):
@@ -125,8 +139,8 @@ if __name__ == "__main__":
             ticker = os.getenv(ConfigKeys.TICKER)
 
             # res = await broker.get_current_price(ticker)
-            # res = await broker.get_balances()
-            res = await broker.cancel_orders(ticker)
+            res = await broker.get_balances()
+            # res = await broker.cancel_orders(ticker)
             # res = await broker.place_order(ticker, "bid", "limit", price=1000, volume=5)
             # res = await broker.place_order(ticker, "ask", "limit", price=4000, volume=5)
             # res = await broker.sell_market_order(ticker, 2)

@@ -41,6 +41,9 @@ class Balance(BaseModel):
     avg_buy_price_modified: bool
     unit_currency: str
 
+    class Config:
+        extra = "ignore"
+
 
 class Order(BaseModel):
     uuid: str
@@ -58,3 +61,6 @@ class Order(BaseModel):
     locked: float
     executed_volume: float
     trades_count: int
+
+    class Config:
+        extra = "ignore"
