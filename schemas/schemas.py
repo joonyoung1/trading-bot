@@ -1,31 +1,10 @@
 from dataclasses import dataclass
+from datetime import datetime
+from pydantic import BaseModel
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from io import BytesIO
-
-
-@dataclass(frozen=True)
-class ConfigKeys:
-    LOG_DIR: str = "LOG_DIR"
-    DATA_DIR: str = "DATA_DIR"
-
-    TOKEN: str = "TOKEN"
-    CHAT_ID: str = "CHAT_ID"
-
-    ACCESS: str = "ACCESS"
-    SECRET: str = "SECRET"
-    TICKER: str = "TICKER"
-
-    PIVOT: str = "PIVOT"
-
-
-@dataclass(frozen=True)
-class Cols:
-    TS: str = "timestamp"
-    BAL: str = "balance"
-    P: str = "price"
-    R: str = "ratio"
 
 
 @dataclass
@@ -52,3 +31,36 @@ class Status:
 class Dashboard:
     trend: "BytesIO"
     status: Status
+
+
+class Balance(BaseModel):
+    currency: str
+    balance: float
+    locked: float
+    avg_buy_price: float
+    avg_buy_price_modified: bool
+    unit_currency: str
+
+    class Config:
+        extra = "ignore"
+
+
+class Order(BaseModel):
+    uuid: str
+    side: str
+    ord_type: str
+    price: float
+    state: str
+    market: str
+    created_at: datetime
+    volume: float
+    remaining_volume: float
+    reserved_fee: float
+    remaining_fee: float
+    paid_fee: float
+    locked: float
+    executed_volume: float
+    trades_count: int
+
+    class Config:
+        extra = "ignore"

@@ -33,8 +33,12 @@ class DataProcessor:
         idx_24h = histories[Cols.TS].searchsorted(time_24h)
         history_24h = histories.iloc[idx_24h]
 
-        cash = await self.broker.get_balance("KRW")
-        quantity = await self.broker.get_balance(self.TICKER)
+        balance_map = await self.broker.get_balances()
+        cash_b = balance_map.get("KRW")
+        cash = 0 if not cash_b else cash_b.balance + cash_b.locked
+        coin_b = balance_map.get(self.TICKER)
+        quantity = 0 if not coin_b else coin_b.balance + coin_b.locked
+
         current_price = await self.broker.get_current_price(self.TICKER)
         current_balance = cash + quantity * current_price
 

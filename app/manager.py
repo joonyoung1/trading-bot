@@ -27,7 +27,7 @@ class Manager:
             loop.add_signal_handler(sig, signal_handler)
 
         try:
-            self.broker.set_loop(loop)
+            self.broker.initialize()
             await self.telegram_bot.start()
 
             await stop_event.wait()

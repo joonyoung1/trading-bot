@@ -1,7 +1,7 @@
 import asyncio
 import os
 import logging
-from dataclasses import dataclass
+from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from utils import get_lower_price, get_upper_price, calc_ratio
@@ -19,12 +19,11 @@ class NotInitializedError(Exception): ...
 
 
 class TradingBot:
-    @dataclass(frozen=True)
-    class State:
-        INITIALIZED = 0
-        RUNNING = 1
-        STOPPING = 2
-        TERMINATED = 3
+    class State(Enum):
+        INITIALIZED = auto()
+        RUNNING = auto()
+        STOPPING = auto()
+        TERMINATED = auto()
 
     def __init__(self, broker: "Broker", tracker: "Tracker") -> None:
         self.broker = broker
@@ -42,8 +41,13 @@ class TradingBot:
         self.state = self.State.INITIALIZED
 
     async def update_balance(self) -> None:
-        self.cash = await self.broker.get_balance("KRW")
-        self.quantity = await self.broker.get_balance(self.TICKER)
+        balance_map = await self.broker.get_balances()
+
+        cash = balance_map.get("KRW")
+        self.cash = 0 if not cash else cash.balance + cash.locked
+
+        coin = balance_map.get(self.TICKER)
+        self.quantity = 0 if not coin else coin.balance + coin.locked
 
         logger.info(f"cash: {self.cash}, quantity: {self.quantity}")
 
@@ -61,7 +65,7 @@ class TradingBot:
                     self.TICKER, -volume / self.last_price
                 )
 
-            await self.wait_order_closed(order["uuid"])
+            await self.wait_order_closed(order.uuid)
             await self.update_balance()
             await self.record_trade()
 
@@ -97,18 +101,23 @@ class TradingBot:
                 await asyncio.sleep(0.5)
         else:
             self.state = self.State.TERMINATED
+        await self.broker.cancel_orders(self.TICKER)
 
     async def run(self) -> None:
         while self.state == self.State.RUNNING:
             buy_uuid, sell_uuid, lower_price, upper_price = await self.place_orders()
             any_closed, bought = await self.wait_any_closed(buy_uuid, sell_uuid)
-            await self.broker.cancel_orders(self.TICKER)
 
             if any_closed:
                 self.last_price = lower_price if bought else upper_price
                 self.update_pivot_price()
                 await self.update_balance()
                 await self.record_trade()
+
+                if bought:
+                    await self.broker.cancel_order(sell_uuid)
+                else:
+                    await self.broker.cancel_order(buy_uuid)
 
         self.state = self.State.TERMINATED
 
@@ -121,7 +130,7 @@ class TradingBot:
         lower_price = price
         while True:
             volume = self.calc_volume(lower_price)
-            if volume >= 5001 and self.is_trade_profitable(lower_price):
+            if self.is_trade_profitable(lower_price) and volume >= 5000:
                 quantity = volume / lower_price
                 buy_order = await self.broker.buy_limit_order(
                     self.TICKER, lower_price, quantity
@@ -133,33 +142,44 @@ class TradingBot:
         upper_price = price
         while True:
             volume = -self.calc_volume(upper_price)
-            if volume >= 5001 and self.is_trade_profitable(upper_price):
+            if self.is_trade_profitable(upper_price) and volume >= 5000:
                 quantity = volume / upper_price
                 sell_order = await self.broker.sell_limit_order(
-                    self.TICKER, upper_price, volume / upper_price
+                    self.TICKER, upper_price, quantity
                 )
                 break
 
             upper_price = get_upper_price(upper_price)
 
-        return buy_order["uuid"], sell_order["uuid"], lower_price, upper_price
+        return buy_order.uuid, sell_order.uuid, lower_price, upper_price
 
     async def wait_any_closed(
         self, buy_uuid: str, sell_uuid: str
     ) -> tuple[bool, bool | None]:
         while self.state == self.State.RUNNING:
-            if await self.broker.check_order_closed(buy_uuid):
+            order_map = await self.broker.get_orders([buy_uuid, sell_uuid])
+
+            if (
+                order_map[buy_uuid].state == "done"
+                or order_map[buy_uuid].state == "cancel"
+            ):
                 return True, True
 
-            if await self.broker.check_order_closed(sell_uuid):
+            if (
+                order_map[sell_uuid].state == "done"
+                or order_map[sell_uuid].state == "cancel"
+            ):
                 return True, False
 
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
 
         return False, None
 
     async def wait_order_closed(self, uuid: str) -> None:
-        while not await self.broker.check_order_closed(uuid):
+        while True:
+            order = await self.broker.get_order(uuid)
+            if order.state == "done" or order.state == "done":
+                break
             await asyncio.sleep(0.5)
 
     def is_trade_profitable(self, price: float) -> bool:
