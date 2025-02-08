@@ -178,7 +178,7 @@ class TradingBot:
     async def wait_order_closed(self, uuid: str) -> None:
         while True:
             order = await self.broker.get_order(uuid)
-            if order.state == "done" or order.state == "done":
+            if order.state == "done" or order.state == "cancel":
                 break
             await asyncio.sleep(0.5)
 
