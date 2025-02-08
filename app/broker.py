@@ -14,8 +14,9 @@ class Broker:
     def __init__(self):
         self.ACCESS = os.getenv(ConfigKeys.ACCESS)
         self.SECRET = os.getenv(ConfigKeys.SECRET)
-
         self.base_url = "https://api.upbit.com"
+    
+    def initialize(self):
         self.session = aiohttp.ClientSession()
 
     async def request(
