@@ -57,7 +57,7 @@ class TradingBot:
 
         logger.info(f"calibration volume: {volume}")
 
-        if abs(volume) >= 5001:
+        if abs(volume) >= 5000:
             if volume > 0:
                 order = await self.broker.buy_market_order(self.TICKER, volume)
             else:

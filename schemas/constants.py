@@ -1,19 +1,19 @@
-from enum import Enum
+from enum import StrEnum
 
 
-class ConfigKeys(str, Enum):
-    LOG_DIR: str = "LOG_DIR"
-    DATA_DIR: str = "DATA_DIR"
-    TOKEN: str = "TOKEN"
-    CHAT_ID: str = "CHAT_ID"
-    ACCESS: str = "ACCESS"
-    SECRET: str = "SECRET"
-    TICKER: str = "TICKER"
-    PIVOT: str = "PIVOT"
+class ConfigKeys(StrEnum):
+    LOG_DIR = "LOG_DIR"
+    DATA_DIR = "DATA_DIR"
+    TOKEN = "TOKEN"
+    CHAT_ID = "CHAT_ID"
+    ACCESS = "ACCESS"
+    SECRET = "SECRET"
+    TICKER = "TICKER"
+    PIVOT = "PIVOT"
 
 
-class Cols(str, Enum):
-    TS: str = "timestamp"
-    BAL: str = "balance"
-    P: str = "price"
-    R: str = "ratio"
+class Cols(StrEnum):
+    TS = "timestamp"
+    BAL = "balance"
+    P = "price"
+    R = "ratio"
