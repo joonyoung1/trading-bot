@@ -6,7 +6,9 @@ from sqlalchemy.orm import sessionmaker
 from .base import Base
 from constants import ConfigKeys
 
-database_path = os.path.join(os.getenv(ConfigKeys.DATA_DIR), "app.db")
+data_dir = os.getenv(ConfigKeys.DATA_DIR)
+os.makedirs(data_dir, exist_ok=True)
+database_path = os.path.join(data_dir, "app.db")
 DATABASE_URL = f"sqlite+aiosqlite:///{database_path}"
 
 engine = create_async_engine(DATABASE_URL, connect_args={"check_same_thread": False})
