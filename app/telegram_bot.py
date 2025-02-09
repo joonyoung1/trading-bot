@@ -1,6 +1,6 @@
 import os
 import asyncio
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 import textwrap
 
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 
 class TelegramBot:
-    class Button(str, Enum):
+    class Button(StrEnum):
         TOGGLE = "🔄 Toggle TradingBot"
         DASHBOARD = "📊 Dashboard"
 

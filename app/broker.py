@@ -72,6 +72,7 @@ class Broker:
         for uuid in uuids:
             if uuid not in order_map:
                 raise ValueError(f"Missing order data for UUID: {uuid}\n{order_map}")
+        return order_map
 
     @retry()
     async def buy_limit_order(self, ticker: str, price: float, volume: float) -> Order:
