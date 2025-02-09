@@ -152,8 +152,8 @@ class DataProcessor:
     def generate_trend_plot(self, histories: pd.DataFrame) -> BytesIO:
         initial_balance = histories[History.balance.name].iloc[0]
         value_rate = (histories[History.balance.name] / initial_balance - 1) * 100
-        initial_price = histories[History.price.name].iloc[0] - 1
-        price_rate = (histories[History.price.name] / initial_price) * 100
+        initial_price = histories[History.price.name].iloc[0]
+        price_rate = (histories[History.price.name] / initial_price - 1) * 100
         ratio = histories[History.ratio.name] * 100
 
         fig, ax1 = plt.subplots(figsize=(10, 6))

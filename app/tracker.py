@@ -25,7 +25,7 @@ class Tracker:
             query = (
                 select(History)
                 .where(History.timestamp >= time_limit)
-                .order_by(History.timestamp.desc())
+                .order_by(History.timestamp.asc())
             )
             result = await session.execute(query)
             histories = result.scalars().all()
