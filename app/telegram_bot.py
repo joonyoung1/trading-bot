@@ -32,18 +32,20 @@ class TelegramBot:
         textwrap.dedent(
             """\
             <code>&lt;Estimated Profit&gt;
-              24H: {{ format_value(profit_24h, True, True) }} {{ format_rate(profit_rate_24h) }}
+              24h: {{ format_value(profit_24h, True, True) }} {{ format_rate(profit_rate_24h) }}
               3M:  {{ format_value(profit_3m, True, True) }} {{ format_rate(profit_rate_3m) }}
 
             &lt;Balance&gt;
               Now: {{ format_value(balance, False, True) }}
-              24H: {{ format_value(balance_delta_24h, True, True) }} {{ format_rate(balance_rate_24h) }}
+              24h: {{ format_value(balance_delta_24h, True, True) }} {{ format_rate(balance_rate_24h) }}
               3M:  {{ format_value(balance_delta_3m, True, True) }} {{ format_rate(balance_rate_3m) }}
             
             &lt;Price&gt;
               Now: {{ format_value(price, False, False) }}
-              24H: {{ format_value(price_delta_24h, True, False) }} {{ format_rate(price_rate_24h) }}
-              3M:  {{ format_value(price_delta_3m, True, False) }} {{ format_rate(price_rate_3m) }}</code>
+              24h: {{ format_value(price_delta_24h, True, False) }} {{ format_rate(price_rate_24h) }}
+              3M:  {{ format_value(price_delta_3m, True, False) }} {{ format_rate(price_rate_3m) }}
+            
+            {{ n_trades }} trades executed in the last 24h</code>
             """
         )
     )

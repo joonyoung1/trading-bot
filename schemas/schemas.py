@@ -26,6 +26,8 @@ class Status:
     price_delta_24h: float
     price_rate_24h: float
 
+    n_trades: int
+
 
 @dataclass
 class Dashboard:

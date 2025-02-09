@@ -84,6 +84,7 @@ class DataProcessor:
             price_rate_3m=price_rate_3m,
             price_delta_24h=price_delta_24h,
             price_rate_24h=price_rate_24h,
+            n_trades=len(histories) - idx_24h
         )
 
     @staticmethod
@@ -217,3 +218,9 @@ class DataProcessor:
 
         buffer.seek(0)
         return buffer
+
+    def count_recent_trades(self, histories: pd.DataFrame) -> int:
+        latest = histories["timestamp"].iloc[-1]
+        cutoff = latest - pd.Timedelta(hours=24)
+        start_idx = histories["timestamp"].searchsorted(cutoff, side="left")
+        return len(histories) - start_idx
