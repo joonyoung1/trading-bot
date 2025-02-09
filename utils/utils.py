@@ -25,35 +25,51 @@ def retry(max_attempts: int = 3, delay: float = 1.0, exceptions=(Exception,)):
 
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs):
+            bound_args = inspect.signature(func).bind(*args, **kwargs)
+            bound_args.apply_defaults()
+            formatted_args = ", ".join(
+                f"{k}={v!r}" for k, v in bound_args.arguments.items()
+            )
+            formatted_call = f"{func.__name__}({formatted_args})"
+
             for attempt in range(1, max_attempts + 1):
                 try:
                     return await func(*args, **kwargs)
                 except exceptions as e:
                     if attempt < max_attempts:
                         logger.warning(
-                            f"{func.__name__} failed (attempt {attempt}/{max_attempts}): {e}"
+                            f"{formatted_call} failed (attempt {attempt}/{max_attempts}): {e}"
                         )
                         await asyncio.sleep(delay)
                     else:
                         logger.error(
-                            f"{func.__name__} failed after {max_attempts} attempts"
+                            f"{formatted_call} failed after {max_attempts} attempts",
+                            exc_info=True,
                         )
                         raise
 
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs):
+            bound_args = inspect.signature(func).bind(*args, **kwargs)
+            bound_args.apply_defaults()
+            formatted_args = ", ".join(
+                f"{k}={v!r}" for k, v in bound_args.arguments.items()
+            )
+            formatted_call = f"{func.__name__}({formatted_args})"
+
             for attempt in range(1, max_attempts + 1):
                 try:
                     return func(*args, **kwargs)
                 except exceptions as e:
                     if attempt < max_attempts:
                         logger.warning(
-                            f"{func.__name__} filed (attempt {attempt}/{max_attempts}): {e}"
+                            f"{formatted_call} failed (attempt {attempt}/{max_attempts}): {e}"
                         )
                         time.sleep(delay)
                     else:
                         logger.error(
-                            f"{func.__name__} failed after {max_attempts} attempts"
+                            f"{formatted_call} failed after {max_attempts} attempts",
+                            exc_info=True,
                         )
                         raise
 

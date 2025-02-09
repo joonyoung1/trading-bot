@@ -8,6 +8,7 @@ import aiohttp
 from urllib.parse import urljoin, urlencode, unquote
 
 from schemas import ConfigKeys, Balance, Order
+from utils import retry
 
 
 class Broker:
@@ -25,6 +26,7 @@ class Broker:
         async with self.session.request(method=method, url=url, **kwargs) as response:
             return await response.json()
 
+    @retry()
     async def get_current_price(self, ticker: str) -> float:
         params = {"markets": ticker}
         url = urljoin(self.base_url, "/v1/ticker")
@@ -32,6 +34,7 @@ class Broker:
         response = await self.request("GET", url, params=params)
         return response[0]["trade_price"]
 
+    @retry()
     async def get_balances(self) -> dict[str, Balance]:
         headers = {"Authorization": self.generate_authorization()}
         url = urljoin(self.base_url, "/v1/accounts")
@@ -47,6 +50,7 @@ class Broker:
             for balance in balances
         }
 
+    @retry()
     async def get_order(self, uuid: str) -> Order:
         params = {"uuid": uuid}
         headers = {"Authorization": self.generate_authorization(params=params)}
@@ -55,6 +59,7 @@ class Broker:
         response = await self.request("GET", url, params=params, headers=headers)
         return Order.model_validate(response)
 
+    @retry()
     async def get_orders(self, uuids: list[str]) -> dict[str, Order]:
         params = {"uuids[]": uuids}
         headers = {"Authorization": self.generate_authorization(params=params)}
@@ -62,21 +67,29 @@ class Broker:
 
         response = await self.request("GET", url, params=params, headers=headers)
         orders = [Order.model_validate(item) for item in response]
-        return {order.uuid: order for order in orders}
+        order_map = {order.uuid: order for order in orders}
 
+        for uuid in uuids:
+            if uuid not in order_map:
+                raise ValueError(f"Missing order data for UUID: {uuid}\n{order_map}")
+
+    @retry()
     async def buy_limit_order(self, ticker: str, price: float, volume: float) -> Order:
         return await self.place_order(
             ticker, "bid", "limit", price=price, volume=volume
         )
 
+    @retry()
     async def sell_limit_order(self, ticker: str, price: float, volume: float) -> Order:
         return await self.place_order(
             ticker, "ask", "limit", price=price, volume=volume
         )
 
+    @retry()
     async def buy_market_order(self, ticker: str, price: float) -> Order:
         return await self.place_order(ticker, "bid", "price", price=price)
 
+    @retry()
     async def sell_market_order(self, ticker: str, volume: float) -> Order:
         return await self.place_order(ticker, "ask", "market", volume=volume)
 
@@ -100,12 +113,14 @@ class Broker:
         response = await self.request("POST", url, json=params, headers=headers)
         return Order.model_validate(response)
 
+    @retry()
     async def cancel_order(self, uuid: str) -> None:
         params = {"uuid": uuid}
         headers = {"Authorization": self.generate_authorization(params=params)}
         url = urljoin(self.base_url, "/v1/order")
         return await self.request("DELETE", url, params=params, headers=headers)
 
+    @retry()
     async def cancel_orders(self, ticker: str) -> None:
         params = {"pairs": ticker}
         headers = {"Authorization": self.generate_authorization(params=params)}

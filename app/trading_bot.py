@@ -122,12 +122,7 @@ class TradingBot:
         self.state = self.State.TERMINATED
 
     async def place_orders(self) -> tuple[str, str, float, float]:
-        if self.last_price is not None:
-            price = self.last_price
-        else:
-            price = await self.broker.get_current_price(self.TICKER)
-
-        lower_price = price
+        lower_price = self.last_price
         while True:
             volume = self.calc_volume(lower_price)
             if self.is_trade_profitable(lower_price) and volume >= 5000:
@@ -139,7 +134,7 @@ class TradingBot:
 
             lower_price = get_lower_price(lower_price)
 
-        upper_price = price
+        upper_price = self.last_price
         while True:
             volume = -self.calc_volume(upper_price)
             if self.is_trade_profitable(upper_price) and volume >= 5000:
