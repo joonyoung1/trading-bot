@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 import logging
 from logging.handlers import RotatingFileHandler
 
-from app.manager import Manager
-from schemas import ConfigKeys
+from app import Manager, init_db
+from constants import ConfigKeys
 
 
 def setting_logger() -> None:
@@ -27,9 +27,14 @@ def setting_logger() -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
-if __name__ == "__main__":
+async def main() -> None:
     load_dotenv()
     setting_logger()
-
     manager = Manager()
-    asyncio.run(manager.run())
+
+    await init_db()
+    await manager.run()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

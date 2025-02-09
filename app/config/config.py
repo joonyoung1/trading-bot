@@ -2,7 +2,7 @@ import os
 import json
 from typing import Any
 
-from schemas import ConfigKeys
+from constants import ConfigKeys
 
 
 class Config:

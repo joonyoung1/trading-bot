@@ -9,9 +9,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
 
-from config import config
-from utils import calc_ratio
-from schemas import ConfigKeys, Cols, Status, Dashboard
+from .config import config
+from .models import History
+from .schemas import Status, Dashboard
+from .utils import calc_ratio
+from constants import ConfigKeys
 
 matplotlib.use("Agg")
 
@@ -30,7 +32,7 @@ class DataProcessor:
         history_3m = histories.iloc[0]
 
         time_24h = datetime.now() - timedelta(hours=24)
-        idx_24h = histories[Cols.TS].searchsorted(time_24h)
+        idx_24h = histories[History.timestamp.name].searchsorted(time_24h)
         history_24h = histories.iloc[idx_24h]
 
         balance_map = await self.broker.get_balances()
@@ -43,30 +45,30 @@ class DataProcessor:
         current_balance = cash + quantity * current_price
 
         estimated_balance_3m = self.estimate_balance_at_price(
-            current_balance, current_price, history_3m[Cols.P]
+            current_balance, current_price, history_3m[History.price.name]
         )
         profit_3m, profit_rate_3m = self.calc_delta_rate(
-            estimated_balance_3m, history_3m[Cols.BAL]
+            estimated_balance_3m, history_3m[History.balance.name]
         )
         estimated_balance_24h = self.estimate_balance_at_price(
-            current_balance, current_price, history_24h[Cols.P]
+            current_balance, current_price, history_24h[History.price.name]
         )
         profit_24h, profit_rate_24h = self.calc_delta_rate(
-            estimated_balance_24h, history_24h[Cols.BAL]
+            estimated_balance_24h, history_24h[History.balance.name]
         )
 
         balance_delta_3m, balance_rate_3m = self.calc_delta_rate(
-            current_balance, history_3m[Cols.BAL]
+            current_balance, history_3m[History.balance.name]
         )
         balance_delta_24h, balance_rate_24h = self.calc_delta_rate(
-            current_balance, history_24h[Cols.BAL]
+            current_balance, history_24h[History.balance.name]
         )
 
         price_delta_3m, price_rate_3m = self.calc_delta_rate(
-            current_price, history_3m[Cols.P]
+            current_price, history_3m[History.price.name]
         )
         price_delta_24h, price_rate_24h = self.calc_delta_rate(
-            current_price, history_24h[Cols.P]
+            current_price, history_24h[History.price.name]
         )
 
         return Status(
@@ -84,7 +86,7 @@ class DataProcessor:
             price_rate_3m=price_rate_3m,
             price_delta_24h=price_delta_24h,
             price_rate_24h=price_rate_24h,
-            n_trades=len(histories) - idx_24h
+            n_trades=len(histories) - idx_24h,
         )
 
     @staticmethod
@@ -116,9 +118,12 @@ class DataProcessor:
         return Dashboard(trend=trend_plot, status=status)
 
     def adaptive_sampling(self, histories: pd.DataFrame) -> pd.DataFrame:
-        time_diff = histories[Cols.TS].iloc[-1] - histories[Cols.TS].iloc[0]
+        time_diff: timedelta = (
+            histories[History.timestamp.name].iloc[-1]
+            - histories[History.timestamp.name].iloc[0]
+        )
         unit = time_diff.total_seconds() * 1e9 / 240
-        ts = histories[Cols.TS].astype("int64").to_numpy()
+        ts = histories[History.timestamp.name].astype("int64").to_numpy()
 
         min_vals = np.empty(len(histories))
         max_vals = np.empty(len(histories))
@@ -131,11 +136,11 @@ class DataProcessor:
             while end_idx < len(histories) and ts[end_idx] - ts[i] < unit:
                 end_idx += 1
 
-            window = histories[Cols.P].iloc[start_idx:end_idx]
+            window = histories[History.price.name].iloc[start_idx:end_idx]
             min_vals[i] = window.min()
             max_vals[i] = window.max()
 
-        prices = histories[Cols.P].to_numpy()
+        prices = histories[History.price.name].to_numpy()
         is_extreme = (prices == min_vals) | (prices == max_vals)
         gap_mask = np.diff(ts, prepend=ts[0]) > unit
 
@@ -145,17 +150,19 @@ class DataProcessor:
         ]
 
     def generate_trend_plot(self, histories: pd.DataFrame) -> BytesIO:
-        value_rate = (histories[Cols.BAL] / histories[Cols.BAL].iloc[0] - 1) * 100
-        price_rate = (histories[Cols.P] / histories[Cols.P].iloc[0] - 1) * 100
-        ratio = histories[Cols.R] * 100
+        initial_balance = histories[History.balance.name].iloc[0]
+        value_rate = (histories[History.balance.name] / initial_balance - 1) * 100
+        initial_price = histories[History.price.name].iloc[0] - 1
+        price_rate = (histories[History.price.name] / initial_price) * 100
+        ratio = histories[History.ratio.name] * 100
 
         fig, ax1 = plt.subplots(figsize=(10, 6))
 
         ax1.set_ylabel("Cash Ratio (%)", color="tab:blue")
         ax1.plot(
-            histories[Cols.TS],
+            histories[History.timestamp.name],
             ratio,
-            label=Cols.R,
+            label=History.ratio.name,
             color="tab:blue",
             linestyle="-.",
         )
@@ -163,14 +170,14 @@ class DataProcessor:
         ax1.set_ylim(0, 100)
 
         ax1.fill_between(
-            histories[Cols.TS],
+            histories[History.timestamp.name],
             ratio,
             100,
             color="lightcoral",
             alpha=0.3,
         )
         ax1.fill_between(
-            histories[Cols.TS],
+            histories[History.timestamp.name],
             ratio,
             0,
             color="lightblue",
@@ -178,19 +185,19 @@ class DataProcessor:
         )
 
         ax2 = ax1.twinx()
-        ax2.set_xlabel(Cols.TS)
+        ax2.set_xlabel(History.timestamp.name)
         ax2.set_ylabel("Rate of Change (%)", color="tab:green")
         ax2.plot(
-            histories[Cols.TS],
+            histories[History.timestamp.name],
             value_rate,
-            label=Cols.BAL,
+            label=History.balance.name,
             color="tab:green",
             linestyle="-",
         )
         ax2.plot(
-            histories[Cols.TS],
+            histories[History.timestamp.name],
             price_rate,
-            label=Cols.P,
+            label=History.price.name,
             color="tab:red",
             linestyle="-",
         )
@@ -209,7 +216,10 @@ class DataProcessor:
         )
 
         plt.title("Balance Trends")
-        plt.xlim(histories[Cols.TS].iloc[0], histories[Cols.TS].iloc[-1])
+        plt.xlim(
+            histories[History.timestamp.name].iloc[0],
+            histories[History.timestamp.name].iloc[-1],
+        )
         fig.tight_layout()
 
         buffer = BytesIO()
@@ -218,9 +228,3 @@ class DataProcessor:
 
         buffer.seek(0)
         return buffer
-
-    def count_recent_trades(self, histories: pd.DataFrame) -> int:
-        latest = histories["timestamp"].iloc[-1]
-        cutoff = latest - pd.Timedelta(hours=24)
-        start_idx = histories["timestamp"].searchsorted(cutoff, side="left")
-        return len(histories) - start_idx
