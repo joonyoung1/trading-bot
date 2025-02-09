@@ -9,7 +9,7 @@ from constants import ConfigKeys
 
 
 def setting_logger() -> None:
-    log_dir = os.getenv(ConfigKeys.LOG_DIR, "log")
+    log_dir = os.getenv(ConfigKeys.LOG_DIR, "logs")
     os.makedirs(log_dir, exist_ok=True)
 
     logging.basicConfig(

@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from .base import Base
 from constants import ConfigKeys
 
-data_dir = os.getenv(ConfigKeys.DATA_DIR)
+data_dir = os.getenv(ConfigKeys.DATA_DIR, "data")
 os.makedirs(data_dir, exist_ok=True)
 database_path = os.path.join(data_dir, "app.db")
 DATABASE_URL = f"sqlite+aiosqlite:///{database_path}"
