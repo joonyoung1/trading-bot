@@ -7,8 +7,9 @@ from typing import Literal
 import aiohttp
 from urllib.parse import urljoin, urlencode, unquote
 
-from schemas import ConfigKeys, Balance, Order
-from utils import retry
+from .schemas import Balance, Order
+from constants import ConfigKeys
+from .utils import retry
 
 
 class Broker:

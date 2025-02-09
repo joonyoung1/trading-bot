@@ -4,9 +4,9 @@ import logging
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-from utils import get_lower_price, get_upper_price, calc_ratio
-from config import config
-from schemas import ConfigKeys
+from .utils import get_lower_price, get_upper_price, calc_ratio
+from .config import config
+from constants import ConfigKeys
 
 if TYPE_CHECKING:
     from app.broker import Broker

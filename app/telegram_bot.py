@@ -15,8 +15,8 @@ from telegram.ext import (
     filters,
 )
 
-from utils import retry
-from schemas import ConfigKeys
+from .utils import retry
+from constants import ConfigKeys
 
 if TYPE_CHECKING:
     from app.trading_bot import TradingBot
