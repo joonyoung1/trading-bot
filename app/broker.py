@@ -3,6 +3,7 @@ import jwt
 import hashlib
 import uuid
 from typing import Literal
+import asyncio
 
 import aiohttp
 from urllib.parse import urljoin, urlencode, unquote
@@ -24,8 +25,12 @@ class Broker:
     async def request(
         self, method: Literal["GET", "POST", "DELETE"], url: str, **kwargs
     ):
-        async with self.session.request(method=method, url=url, **kwargs) as response:
-            return await response.json()
+        while True:
+            async with self.session.request(method=method, url=url, **kwargs) as response:
+                if response.status == 429:
+                    await asyncio.sleep(0.5)
+                    continue
+                return await response.json()
 
     @retry()
     async def get_current_price(self, ticker: str) -> float:
