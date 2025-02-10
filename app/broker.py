@@ -8,7 +8,7 @@ import asyncio
 import aiohttp
 from urllib.parse import urljoin, urlencode, unquote
 
-from .schemas import Balance, Order
+from .schemas import Balance, Order, Candle
 from constants import ConfigKeys
 from .utils import retry
 
@@ -26,7 +26,9 @@ class Broker:
         self, method: Literal["GET", "POST", "DELETE"], url: str, **kwargs
     ):
         while True:
-            async with self.session.request(method=method, url=url, **kwargs) as response:
+            async with self.session.request(
+                method=method, url=url, **kwargs
+            ) as response:
                 if response.status == 429:
                     await asyncio.sleep(0.5)
                     continue
@@ -133,6 +135,26 @@ class Broker:
         headers = {"Authorization": self.generate_authorization(params=params)}
         url = urljoin(self.base_url, "/v1/orders/open")
         return await self.request("DELETE", url, params=params, headers=headers)
+
+    async def get_candles(
+        self,
+        to: str,
+        count: int,
+        time_unit: Literal["second", "minute", "day", "week", "month", "year"],
+        unit: Literal[1, 3, 5, 10, 15, 30, 60, 240] | None = None,
+    ) -> list[Candle]:
+        if time_unit == "minute" and unit is None:
+            raise ValueError(
+                "The 'unit' parameter is required when 'time_unit' is 'minute'."
+            )
+
+        params = {"market": "KRW-XRP", "count": count, "to": to}
+        headers = {"Accept": "application/json"}
+        url = urljoin(self.base_url, f"/v1/candles/{time_unit}s")
+        if unit:
+            url = f"{url}/{unit}"
+        response = await self.request("GET", url, params=params, headers=headers)
+        return [Candle.model_validate(item) for item in response]
 
     async def close(self):
         await self.session.close()

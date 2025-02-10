@@ -6,20 +6,12 @@ from urllib.parse import urljoin
 from app.broker import Broker
 
 
-class CandleFetcher(Broker):
-    async def get_candles(self, to: str) -> list[dict]:
-        params = {"market": "KRW-XRP", "count": 144, "to": to}
-        headers = {"Accept": "application/json"}
-        url = urljoin(self.base_url, "/v1/candles/minutes/1")
-        return await self.request("GET", url, params=params, headers=headers)
-
-
 if __name__ == "__main__":
     now = datetime.now(timezone.utc)
 
     async def main():
         try:
-            fetcher = CandleFetcher()
+            fetcher = Broker()
             fetcher.initialize()
 
             tos = [
@@ -27,21 +19,20 @@ if __name__ == "__main__":
                 for x in range(70)
             ]
 
-            tasks = [fetcher.get_candles(to=to) for to in tos]
+            tasks = [fetcher.get_candles(to, 144, "minute", 1) for to in tos]
 
             results = await asyncio.gather(*tasks)
 
             data = []
-            for res in results[::-1]:
-                for candle in res[::-1]:
-                    # print(candle["candle_date_time_kst"])
+            for candles in results[::-1]:
+                for candle in candles[::-1]:
                     data.append(
                         {
-                            "timestamp": candle["candle_date_time_utc"],
-                            "o": candle["opening_price"],
-                            "h": candle["high_price"],
-                            "l": candle["low_price"],
-                            "t": candle["trade_price"],
+                            "timestamp": candle.candle_date_time_utc,
+                            "o": candle.opening_price,
+                            "h": candle.high_price,
+                            "l": candle.low_price,
+                            "t": candle.trade_price,
                         }
                     )
 
