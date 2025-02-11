@@ -36,6 +36,7 @@ class TradingBot:
         await self.broker.cancel_orders(self.TICKER)
         await self.update_balance()
         await self.calibrate_ratio()
+        self.update_pivot_price()
         self.set_optimal_last_price()
 
         self.state = self.State.INITIALIZED
@@ -182,11 +183,11 @@ class TradingBot:
 
     def update_pivot_price(self) -> None:
         pivot_price = config.get(ConfigKeys.PIVOT)
-        if self.last_price >= pivot_price * 3:
-            config.set(ConfigKeys.PIVOT, self.last_price / 3)
+        if self.last_price >= pivot_price * 2:
+            config.set(ConfigKeys.PIVOT, self.last_price / 2)
 
-        elif pivot_price >= self.last_price * 3:
-            config.set(ConfigKeys.PIVOT, self.last_price * 3)
+        elif pivot_price >= self.last_price * 2:
+            config.set(ConfigKeys.PIVOT, self.last_price * 2)
 
     def calc_volume(self, price: float) -> float:
         ratio = calc_ratio(price, config.get(ConfigKeys.PIVOT))

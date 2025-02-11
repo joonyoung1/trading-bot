@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import logging
 from logging.handlers import RotatingFileHandler
 
+load_dotenv()
+
 from app import Manager, init_db
 from constants import ConfigKeys
 
@@ -28,7 +30,6 @@ def setting_logger() -> None:
 
 
 async def main() -> None:
-    load_dotenv()
     setting_logger()
     manager = Manager()
 

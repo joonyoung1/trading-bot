@@ -11,10 +11,10 @@ import numpy as np
 def calc_ratio(price: float, pivot_price: float):
     if price >= pivot_price:
         delta = (price / pivot_price) - 1
-        ratio = -0.5 * (2**-delta) + 1
+        ratio = -0.5 * (2**-(2*delta)) + 1
     else:
         delta = (pivot_price / price) - 1
-        ratio = 0.5 * (2**-delta)
+        ratio = 0.5 * (2**-(2*delta))
     return np.clip(ratio, 0.125, 0.875)
 
 
