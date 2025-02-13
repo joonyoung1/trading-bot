@@ -11,20 +11,20 @@ if TYPE_CHECKING:
 class Status:
     profit_3m: float
     profit_rate_3m: float
-    profit_24h: float
-    profit_rate_24h: float
+    profit_1w: float
+    profit_rate_1w: float
 
     balance: float
     balance_delta_3m: float
     balance_rate_3m: float
-    balance_delta_24h: float
-    balance_rate_24h: float
+    balance_delta_1w: float
+    balance_rate_1w: float
 
     price: float
     price_delta_3m: float
     price_rate_3m: float
-    price_delta_24h: float
-    price_rate_24h: float
+    price_delta_1w: float
+    price_rate_1w: float
 
     n_trades: int
 

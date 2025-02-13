@@ -31,9 +31,9 @@ class DataProcessor:
     async def construct_status(self, histories: pd.DataFrame) -> Status:
         history_3m = histories.iloc[0]
 
-        time_24h = datetime.now() - timedelta(hours=24)
-        idx_24h = histories[History.timestamp.name].searchsorted(time_24h)
-        history_24h = histories.iloc[idx_24h]
+        time_7d = datetime.now() - timedelta(days=7)
+        idx_7d = histories[History.timestamp.name].searchsorted(time_7d)
+        history_7d = histories.iloc[idx_7d]
 
         balance_map = await self.broker.get_balances()
         cash_b = balance_map.get("KRW")
@@ -50,43 +50,42 @@ class DataProcessor:
         profit_3m, profit_rate_3m = self.calc_delta_rate(
             estimated_balance_3m, history_3m[History.balance.name]
         )
-        estimated_balance_24h = self.estimate_balance_at_price(
-            current_balance, current_price, history_24h[History.price.name]
+        estimated_balance_7d = self.estimate_balance_at_price(
+            current_balance, current_price, history_7d[History.price.name]
         )
-        profit_24h, profit_rate_24h = self.calc_delta_rate(
-            estimated_balance_24h, history_24h[History.balance.name]
+        profit_7d, profit_rate_7d = self.calc_delta_rate(
+            estimated_balance_7d, history_7d[History.balance.name]
         )
-
         balance_delta_3m, balance_rate_3m = self.calc_delta_rate(
             current_balance, history_3m[History.balance.name]
         )
-        balance_delta_24h, balance_rate_24h = self.calc_delta_rate(
-            current_balance, history_24h[History.balance.name]
+        balance_delta_7d, balance_rate_7d = self.calc_delta_rate(
+            current_balance, history_7d[History.balance.name]
         )
 
         price_delta_3m, price_rate_3m = self.calc_delta_rate(
             current_price, history_3m[History.price.name]
         )
-        price_delta_24h, price_rate_24h = self.calc_delta_rate(
-            current_price, history_24h[History.price.name]
+        price_delta_7d, price_rate_7d = self.calc_delta_rate(
+            current_price, history_7d[History.price.name]
         )
 
         return Status(
             profit_3m=profit_3m,
             profit_rate_3m=profit_rate_3m,
-            profit_24h=profit_24h,
-            profit_rate_24h=profit_rate_24h,
+            profit_7d=profit_7d,
+            profit_rate_7d=profit_rate_7d,
             balance=current_balance,
             balance_delta_3m=balance_delta_3m,
             balance_rate_3m=balance_rate_3m,
-            balance_delta_24h=balance_delta_24h,
-            balance_rate_24h=balance_rate_24h,
+            balance_delta_7d=balance_delta_7d,
+            balance_rate_7d=balance_rate_7d,
             price=current_price,
             price_delta_3m=price_delta_3m,
             price_rate_3m=price_rate_3m,
-            price_delta_24h=price_delta_24h,
-            price_rate_24h=price_rate_24h,
-            n_trades=len(histories) - idx_24h,
+            price_delta_7d=price_delta_7d,
+            price_rate_7d=price_rate_7d,
+            n_trades=len(histories) - idx_7d,
         )
 
     @staticmethod
