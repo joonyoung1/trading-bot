@@ -186,9 +186,6 @@ class TradingBot:
         if self.last_price >= pivot_price * 2:
             config.set(ConfigKeys.PIVOT, self.last_price / 2)
 
-        elif pivot_price >= self.last_price * 2:
-            config.set(ConfigKeys.PIVOT, self.last_price * 2)
-
     def calc_volume(self, price: float) -> float:
         ratio = calc_ratio(price, config.get(ConfigKeys.PIVOT))
         value = self.quantity * price + self.cash
