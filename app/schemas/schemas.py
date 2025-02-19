@@ -66,3 +66,17 @@ class Order(BaseModel):
 
     class Config:
         extra = "ignore"
+
+
+class FGI(BaseModel):
+    change_rate: float
+    cls_prc: float
+    code: str
+    currency: str
+    date: str
+    english_name: str
+    korean_name: str
+    score: float
+    stage: str
+    stage_en: str
+    updated_at: str
