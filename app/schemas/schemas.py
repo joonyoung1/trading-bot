@@ -28,6 +28,9 @@ class Status:
 
     n_trades: int
 
+    fgi_score: float
+    fgi_text: str
+
 
 @dataclass
 class Dashboard:

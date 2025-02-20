@@ -70,6 +70,8 @@ class DataProcessor:
             current_price, history_7d[History.price.name]
         )
 
+        fgi = await self.broker.get_fgi(self.CURRENCY)
+
         return Status(
             profit_3m=profit_3m,
             profit_rate_3m=profit_rate_3m,
@@ -86,6 +88,8 @@ class DataProcessor:
             price_delta_7d=price_delta_7d,
             price_rate_7d=price_rate_7d,
             n_trades=len(histories) - idx_7d,
+            fgi_score=fgi.score,
+            fgi_text=fgi.stage_en,
         )
 
     @staticmethod

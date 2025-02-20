@@ -45,6 +45,10 @@ class TelegramBot:
               7D:  {{ format_value(price_delta_7d, True, False) }} {{ format_rate(price_rate_7d) }}
               3M:  {{ format_value(price_delta_3m, True, False) }} {{ format_rate(price_rate_3m) }}
             
+            &lt;Fear & Greed Index&gt;
+              score: {{ format_score(fgi_score) }}
+              text:  {{ format_text(fgi_text) }}
+              
             {{ n_trades }} trades in the last 7 days</code>
             """
         )
@@ -85,11 +89,19 @@ class TelegramBot:
         return f"{postfix}{formatted}".rjust(12)
 
     @staticmethod
-    def format_rate(rate: float):
+    def format_rate(rate: float) -> str:
         if rate >= 0:
             return f"(🔺+{rate:.2f}%)".rjust(12)
         else:
             return f"(🔻{rate:.2f}%)".rjust(12)
+        
+    @staticmethod
+    def format_score(score: float) -> str:
+        return f"{score:.2f}".rjust(10)
+    
+    @staticmethod
+    def format_text(text: str) -> str:
+        return f"{text}".rjust(10)
 
     @retry()
     async def start_handler(
