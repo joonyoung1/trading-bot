@@ -5,8 +5,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from .utils import get_lower_price, get_upper_price, calc_ratio
-from .config import config
-from constants import ConfigKeys
+from config import ConfigKeys, config, Env
 
 if TYPE_CHECKING:
     from app.broker import Broker
@@ -30,7 +29,8 @@ class TradingBot:
         self.tracker = tracker
 
         self.state = self.State.TERMINATED
-        self.TICKER = os.getenv(ConfigKeys.TICKER)
+        self.TICKER = Env.TICKER
+        self.CURRENCY = Env.CURRENCY
 
     async def initialize(self) -> None:
         await self.broker.cancel_orders(self.TICKER)
@@ -47,7 +47,7 @@ class TradingBot:
         cash = balance_map.get("KRW")
         self.cash = 0 if not cash else cash.balance + cash.locked
 
-        coin = balance_map.get(self.TICKER)
+        coin = balance_map.get(self.CURRENCY)
         self.quantity = 0 if not coin else coin.balance + coin.locked
 
         logger.info(f"cash: {self.cash}, quantity: {self.quantity}")

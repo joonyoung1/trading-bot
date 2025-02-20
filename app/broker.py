@@ -8,14 +8,14 @@ import aiohttp
 from urllib.parse import urljoin, urlencode, unquote
 
 from .schemas import Balance, Order, FGI
-from constants import ConfigKeys
+from config import Env
 from .utils import retry
 
 
 class Broker:
     def __init__(self):
-        self.ACCESS = os.getenv(ConfigKeys.ACCESS)
-        self.SECRET = os.getenv(ConfigKeys.SECRET)
+        self.ACCESS = Env.ACCESS
+        self.SECRET = Env.SECRET
         self.upbit_url = "https://api.upbit.com"
         self.ubci_url = "https://ubci-api.ubcindex.com"
 
@@ -43,14 +43,7 @@ class Broker:
 
         response = await self.request("GET", url, headers=headers)
         balances = [Balance.model_validate(item) for item in response]
-        return {
-            (
-                balance.currency
-                if balance.currency == "KRW"
-                else f"{balance.unit_currency}-{balance.currency}"
-            ): balance
-            for balance in balances
-        }
+        return {balance.currency: balance for balance in balances}
 
     @retry()
     async def get_order(self, uuid: str) -> Order:
@@ -96,6 +89,7 @@ class Broker:
     async def sell_market_order(self, ticker: str, volume: float) -> Order:
         return await self.place_order(ticker, "ask", "market", volume=volume)
 
+    @retry()
     async def place_order(
         self,
         ticker: str,
@@ -129,28 +123,27 @@ class Broker:
         headers = {"Authorization": self.generate_authorization(params=params)}
         url = urljoin(self.upbit_url, "/v1/orders/open")
         return await self.request("DELETE", url, params=params, headers=headers)
-    
+
     @retry()
-    async def get_fgi(self, ticker: str) -> FGI:
-        curerncy = ticker.split("-")[1]
+    async def get_fgi(self, currency: str) -> FGI:
         url = urljoin(self.ubci_url, "/v1/crix/feargreed")
 
         response = await self.request("GET", url)
         pairs = response["pairs"]
-        
+
         left, right = 0, len(pairs) - 1
         while left <= right:
             mid = (left + right) // 2
 
             fgi = FGI.model_validate(pairs[mid])
-            if fgi.currency == curerncy:
+            if fgi.currency == currency:
                 return fgi
-            elif fgi.currency < curerncy:
+            elif fgi.currency < currency:
                 left = mid + 1
             else:
                 right = mid - 1
-        
-        raise ValueError(f"FGI data for currency {curerncy} not found")
+
+        raise ValueError(f"FGI data for currency {currency} not found")
 
     async def close(self):
         await self.session.close()

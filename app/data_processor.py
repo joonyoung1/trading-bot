@@ -9,11 +9,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
 
-from .config import config
 from .models import History
 from .schemas import Status, Dashboard
 from .utils import calc_ratio
-from constants import ConfigKeys
+from config import ConfigKeys, config, Env
 
 matplotlib.use("Agg")
 
@@ -26,7 +25,8 @@ class DataProcessor:
     def __init__(self, broker: "Broker", tracker: "Tracker") -> None:
         self.broker = broker
         self.tracker = tracker
-        self.TICKER = os.getenv(ConfigKeys.TICKER)
+        self.TICKER = Env.TICKER
+        self.CURRENCY = Env.CURRENCY
 
     async def construct_status(self, histories: pd.DataFrame) -> Status:
         history_3m = histories.iloc[0]
@@ -38,7 +38,7 @@ class DataProcessor:
         balance_map = await self.broker.get_balances()
         cash_b = balance_map.get("KRW")
         cash = 0 if not cash_b else cash_b.balance + cash_b.locked
-        coin_b = balance_map.get(self.TICKER)
+        coin_b = balance_map.get(self.CURRENCY)
         quantity = 0 if not coin_b else coin_b.balance + coin_b.locked
 
         current_price = await self.broker.get_current_price(self.TICKER)
