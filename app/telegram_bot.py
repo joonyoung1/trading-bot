@@ -66,6 +66,8 @@ class TelegramBot:
         self.template_data = {
             "format_value": self.format_value,
             "format_rate": self.format_rate,
+            "format_score": self.format_score,
+            "format_text": self.format_text,
         }
 
         reply_keyboard = [[self.Button.TOGGLE, self.Button.DASHBOARD]]
