@@ -71,12 +71,12 @@ class TradingBot:
             self.last_price = await self.calc_optimal_price()
 
     async def calc_optimal_price(self) -> float:
-        price = await self.broker.get_current_price(self.TICKER)
+        pivot_price = await self.broker.get_current_price(self.TICKER)
         min_volume = abs(self.calc_volume(price))
-        optimal_price = price
+        optimal_price = pivot_price
 
         for func in (get_lower_price, get_upper_price):
-            price = self.last_price
+            price = pivot_price
             while True:
                 price = func(price)
                 volume = abs(self.calc_volume(price))
