@@ -52,8 +52,9 @@ class TradingBot:
         logger.info(f"cash: {self.cash}, quantity: {self.quantity}")
 
     async def calibrate(self) -> None:
-        self.last_price = await self.calc_optimal_price()
-        volume = self.calc_volume(self.last_price)
+        cur_price = await self.broker.get_current_price(self.TICKER)
+        self.last_price = await self.calc_optimal_price(cur_price)
+        volume = self.calc_volume(cur_price)
 
         logger.info(f"calibration volume: {volume}")
 
@@ -68,15 +69,14 @@ class TradingBot:
             await self.wait_order_closed(order.uuid)
             await self.update_balance()
             await self.record_trade()
-            self.last_price = await self.calc_optimal_price()
+            self.last_price = await self.calc_optimal_price(cur_price)
 
-    async def calc_optimal_price(self) -> float:
-        pivot_price = await self.broker.get_current_price(self.TICKER)
-        min_volume = abs(self.calc_volume(pivot_price))
-        optimal_price = pivot_price
+    async def calc_optimal_price(self, cur_price: float) -> float:
+        min_volume = abs(self.calc_volume(cur_price))
+        optimal_price = cur_price
 
         for func in (get_lower_price, get_upper_price):
-            price = pivot_price
+            price = cur_price
             while True:
                 price = func(price)
                 volume = abs(self.calc_volume(price))
