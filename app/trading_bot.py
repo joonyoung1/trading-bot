@@ -58,7 +58,7 @@ class TradingBot:
 
         logger.info(f"calibration volume: {volume}")
 
-        if self.is_trade_profitable(self.last_price) and abs(volume) >= 5000:
+        if self.is_trade_profitable(cur_price) and abs(volume) >= 5000:
             if volume > 0:
                 order = await self.broker.buy_market_order(self.TICKER, volume)
             else:

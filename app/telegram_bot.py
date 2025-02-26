@@ -46,8 +46,8 @@ class TelegramBot:
               3M:  {{ format_value(price_delta_3m, True, 12, 0) }} {{ format_rate(price_rate_3m, 12) }}
             
             &lt;Fear & Greed Index&gt;
-              score: {{ format_value(fgi_score, False, 10, 2) }}
-              state: {{ format_text(fgi_text, 10) }}
+              score: {{ format_value(fgi_score, False, 13, 2) }}
+              state: {{ format_text(fgi_text, 13) }}
 
             {{ n_trades }} trades in the last 7 days</code>
             """
