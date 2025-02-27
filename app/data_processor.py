@@ -1,4 +1,4 @@
-import os
+import asyncio
 from io import BytesIO
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -35,13 +35,16 @@ class DataProcessor:
         idx_7d = histories[History.timestamp.name].searchsorted(time_7d)
         history_7d = histories.iloc[idx_7d]
 
-        balance_map = await self.broker.get_balances()
+        balance_map, current_price, fgi = await asyncio.gather(
+            self.broker.get_balances(),
+            self.broker.get_current_price(self.TICKER),
+            self.broker.get_fgi(self.CURRENCY),
+        )
+
         cash_b = balance_map.get("KRW")
         cash = 0 if not cash_b else cash_b.balance + cash_b.locked
         coin_b = balance_map.get(self.CURRENCY)
         quantity = 0 if not coin_b else coin_b.balance + coin_b.locked
-
-        current_price = await self.broker.get_current_price(self.TICKER)
         current_balance = cash + quantity * current_price
 
         estimated_balance_3m = self.estimate_balance_at_price(
@@ -69,8 +72,6 @@ class DataProcessor:
         price_delta_7d, price_rate_7d = self.calc_delta_rate(
             current_price, history_7d[History.price.name]
         )
-
-        fgi = await self.broker.get_fgi(self.CURRENCY)
 
         return Status(
             profit_3m=profit_3m,
