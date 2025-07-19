@@ -1,4 +1,3 @@
-import os
 import asyncio
 from enum import StrEnum
 from typing import TYPE_CHECKING
@@ -106,6 +105,9 @@ class TelegramBot:
     async def start_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
+        if update.message is None:
+            return
+
         await update.message.reply_text(
             "Telegram Bot Activated.",
             reply_markup=self.markup,
@@ -115,6 +117,9 @@ class TelegramBot:
     async def message_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
+        if update.message is None:
+            return
+
         text = update.message.text
 
         if text == self.Button.TOGGLE:
@@ -127,27 +132,30 @@ class TelegramBot:
     async def toggle_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
+        if update.message is None:
+            return
+
         async with self.execution_lock:
             if self.trading_bot.is_running():
                 await update.message.reply_text(
-                    f"Terminating Trading Bot ...",
+                    "Terminating Trading Bot ...",
                     reply_markup=self.markup,
                 )
                 await self.trading_bot.stop()
                 await update.message.reply_text(
-                    f"Trading Bot Terminated",
+                    "Trading Bot Terminated",
                     reply_markup=self.markup,
                 )
 
             elif self.trading_bot.is_terminated():
                 await update.message.reply_text(
-                    f"Starting Trading Bot ...",
+                    "Starting Trading Bot ...",
                     reply_markup=self.markup,
                 )
                 await self.trading_bot.initialize()
                 asyncio.create_task(self.trading_bot.start())
                 await update.message.reply_text(
-                    f"Trading Bot Started",
+                    "Trading Bot Started",
                     reply_markup=self.markup,
                 )
 
@@ -155,6 +163,9 @@ class TelegramBot:
     async def dashboard_handler(
         self, update: Update, context: ContextTypes.DEFAULT_TYPE
     ) -> None:
+        if update.message is None:
+            return
+
         dashboard = await self.data_processor.process()
         await update.message.reply_photo(dashboard.trend, reply_markup=self.markup)
 
@@ -168,10 +179,17 @@ class TelegramBot:
     async def start(self) -> None:
         await self.application.initialize()
         await self.application.start()
+
+        if self.application.updater is None:
+            raise RuntimeError("Application updater is not initialized")
+
         await self.application.updater.start_polling()
 
     async def stop(self) -> None:
         await self.trading_bot.stop()
+
+        if self.application.updater is None:
+            raise RuntimeError("Application updater is not initialized")
 
         await self.application.updater.stop()
         await self.application.stop()

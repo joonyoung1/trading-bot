@@ -1,19 +1,26 @@
 import os
 
 
+def _get_required_env(key: str) -> str:
+    value = os.getenv(key)
+    if value is None:
+        raise KeyError(f"Required environment variable '{key}' is not set.")
+    return value
+
+
 class Env:
     # path
     LOG_DIR = os.getenv("LOG_DIR", "log")
     DATA_DIR = os.getenv("DATA_DIR", "data")
 
     # telegram
-    TOKEN = os.getenv("TOKEN")
+    TOKEN = _get_required_env("TOKEN")
 
     # upbit
-    ACCESS = os.getenv("ACCESS")
-    SECRET = os.getenv("SECRET")
+    ACCESS = _get_required_env("ACCESS")
+    SECRET = _get_required_env("SECRET")
 
     # trading
-    TICKER = os.getenv("TICKER")
+    TICKER = _get_required_env("TICKER")
     CURRENCY = TICKER.split("-")[1]
-    PIVOT = float(os.getenv("PIVOT"))
+    PIVOT = float(_get_required_env("PIVOT"))

@@ -1,11 +1,12 @@
-import os
-import jwt
 import hashlib
-import uuid
+import uuid as uuid_lib
 from typing import Literal
+from urllib.parse import urljoin, urlencode, unquote
 
 import aiohttp
-from urllib.parse import urljoin, urlencode, unquote
+import jwt
+
+from app.schemas.schemas import FGIResponse
 
 from .schemas import Balance, Order, FGI
 from config import Env
@@ -17,7 +18,7 @@ class Broker:
         self.ACCESS = Env.ACCESS
         self.SECRET = Env.SECRET
         self.upbit_url = "https://api.upbit.com"
-        self.ubci_url = "https://ubci-api.ubcindex.com"
+        self.datalab_url = "https://datalab-api.upbit.com"
 
     def initialize(self):
         self.session = aiohttp.ClientSession()
@@ -98,7 +99,11 @@ class Broker:
         price: float | None = None,
         volume: float | None = None,
     ) -> Order:
-        params = {"market": ticker, "side": side, "ord_type": ord_type}
+        params: dict[str, str | float] = {
+            "market": ticker,
+            "side": side,
+            "ord_type": ord_type,
+        }
         if price:
             params["price"] = price
         if volume:
@@ -126,22 +131,16 @@ class Broker:
 
     @retry()
     async def get_fgi(self, currency: str) -> FGI:
-        url = urljoin(self.ubci_url, "/v1/crix/feargreed")
+        pair = f"{currency}/KRW"
+        url = urljoin(self.datalab_url, "api/v1/indicator/fear/assets")
 
-        response = await self.request("GET", url)
-        pairs = response["pairs"]
+        response = await self.request("GET", url, params={"locale": "ko"})
+        records = response["data"]["records"]
 
-        left, right = 0, len(pairs) - 1
-        while left <= right:
-            mid = (left + right) // 2
-
-            fgi = FGI.model_validate(pairs[mid])
-            if fgi.currency == currency:
-                return fgi
-            elif fgi.currency < currency:
-                left = mid + 1
-            else:
-                right = mid - 1
+        for record in records:
+            record = FGIResponse.model_validate(record)
+            if record.pair == pair:
+                return FGI.from_response(record)
 
         raise ValueError(f"FGI data for currency {currency} not found")
 
@@ -156,7 +155,7 @@ class Broker:
         return m.hexdigest()
 
     def generate_authorization(self, params: dict | None = None):
-        payload = {"access_key": self.ACCESS, "nonce": str(uuid.uuid4())}
+        payload = {"access_key": self.ACCESS, "nonce": str(uuid_lib.uuid4())}
         if params:
             payload["query_hash"] = self.params_to_query_hash(params)
             payload["query_hash_alg"] = "SHA512"

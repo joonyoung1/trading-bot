@@ -71,15 +71,32 @@ class Order(BaseModel):
         extra = "ignore"
 
 
-class FGI(BaseModel):
-    change_rate: float
-    cls_prc: float
-    code: str
-    currency: str
-    date: str
-    english_name: str
-    korean_name: str
+class FGIResponse(BaseModel):
+    pair: str
+    tradePrice: float
+
+
+@dataclass
+class FGI:
     score: float
-    stage: str
-    stage_en: str
-    updated_at: str
+    state: str
+
+    @classmethod
+    def from_response(cls, response: FGIResponse) -> "FGI":
+        score = response.tradePrice
+
+        state_ranges = {
+            (0, 20): "EXTREME FEAR",
+            (20, 40): "FEAR",
+            (40, 60): "NEUTRAL",
+            (60, 80): "GREED",
+            (80, 100): "EXTREME GREED",
+        }
+
+        state = "UNKNOWN"
+        for (min_score, max_score), state_name in state_ranges.items():
+            if min_score <= score < max_score:
+                state = state_name
+                break
+
+        return cls(score=score, state=state)
