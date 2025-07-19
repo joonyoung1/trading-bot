@@ -7,11 +7,10 @@ from logging.handlers import RotatingFileHandler
 load_dotenv()
 
 from app import Manager, init_db
-from constants import ConfigKeys
-
+from config import Env
 
 def setting_logger() -> None:
-    log_dir = os.getenv(ConfigKeys.LOG_DIR, "logs")
+    log_dir = Env.LOG_DIR
     os.makedirs(log_dir, exist_ok=True)
 
     logging.basicConfig(

@@ -16,7 +16,7 @@ from telegram.ext import (
 )
 
 from .utils import retry
-from constants import ConfigKeys
+from config import Env
 
 if TYPE_CHECKING:
     from app.trading_bot import TradingBot
@@ -32,19 +32,23 @@ class TelegramBot:
         textwrap.dedent(
             """\
             <code>&lt;Estimated Profit&gt;
-              7D:  {{ format_value(profit_7d, True, True) }} {{ format_rate(profit_rate_7d) }}
-              3M:  {{ format_value(profit_3m, True, True) }} {{ format_rate(profit_rate_3m) }}
+              7D:  {{ format_value(profit_7d, True, 12, 0) }} {{ format_rate(profit_rate_7d, 12) }}
+              3M:  {{ format_value(profit_3m, True, 12, 0) }} {{ format_rate(profit_rate_3m, 12) }}
 
             &lt;Balance&gt;
-              Now: {{ format_value(balance, False, True) }}
-              7D:  {{ format_value(balance_delta_7d, True, True) }} {{ format_rate(balance_rate_7d) }}
-              3M:  {{ format_value(balance_delta_3m, True, True) }} {{ format_rate(balance_rate_3m) }}
-            
+              Now: {{ format_value(balance, False, 12, 0) }}
+              7D:  {{ format_value(balance_delta_7d, True, 12, 0) }} {{ format_rate(balance_rate_7d, 12) }}
+              3M:  {{ format_value(balance_delta_3m, True, 12, 0) }} {{ format_rate(balance_rate_3m, 12) }}
+
             &lt;Price&gt;
-              Now: {{ format_value(price, False, False) }}
-              7D:  {{ format_value(price_delta_7d, True, False) }} {{ format_rate(price_rate_7d) }}
-              3M:  {{ format_value(price_delta_3m, True, False) }} {{ format_rate(price_rate_3m) }}
+              Now: {{ format_value(price, False, 12, 0) }}
+              7D:  {{ format_value(price_delta_7d, True, 12, 0) }} {{ format_rate(price_rate_7d, 12) }}
+              3M:  {{ format_value(price_delta_3m, True, 12, 0) }} {{ format_rate(price_rate_3m, 12) }}
             
+            &lt;Fear & Greed Index&gt;
+              score: {{ format_value(fgi_score, False, 13, 2) }}
+              state: {{ format_text(fgi_text, 13) }}
+
             {{ n_trades }} trades in the last 7 days</code>
             """
         )
@@ -56,12 +60,13 @@ class TelegramBot:
         self.trading_bot = trading_bot
         self.data_processor = data_processor
 
-        self.TOKEN = os.getenv(ConfigKeys.TOKEN)
+        self.TOKEN = Env.TOKEN
         self.application = Application.builder().token(self.TOKEN).build()
         self.execution_lock = asyncio.Lock()
         self.template_data = {
             "format_value": self.format_value,
             "format_rate": self.format_rate,
+            "format_text": self.format_text,
         }
 
         reply_keyboard = [[self.Button.TOGGLE, self.Button.DASHBOARD]]
@@ -75,21 +80,27 @@ class TelegramBot:
         )
 
     @staticmethod
-    def format_value(value: float, with_sign: bool, integer_only: bool) -> str:
+    def format_value(
+        value: float, with_sign: bool, rjust: int, decimals: int | None = None
+    ) -> str:
         postfix = "+" if with_sign and value >= 0 else ""
 
-        if integer_only:
-            formatted = f"{value:,.0f}"
-        else:
+        if decimals is None:
             formatted = f"{value:,}".rstrip("0").rstrip(".")
-        return f"{postfix}{formatted}".rjust(12)
+        else:
+            formatted = f"{value:,.{decimals}f}"
+        return f"{postfix}{formatted}".rjust(rjust)
 
     @staticmethod
-    def format_rate(rate: float):
+    def format_rate(rate: float, rjust: int) -> str:
         if rate >= 0:
-            return f"(🔺+{rate:.2f}%)".rjust(12)
+            return f"(🔺+{rate:.2f}%)".rjust(rjust)
         else:
-            return f"(🔻{rate:.2f}%)".rjust(12)
+            return f"(🔻{rate:.2f}%)".rjust(rjust)
+
+    @staticmethod
+    def format_text(text: str, rjust: int) -> str:
+        return f"{text}".rjust(rjust)
 
     @retry()
     async def start_handler(

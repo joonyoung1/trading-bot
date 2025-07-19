@@ -2,7 +2,7 @@ import os
 import json
 from typing import Any
 
-from constants import ConfigKeys
+from config import ConfigKeys, Env
 
 
 class Config:
@@ -11,7 +11,7 @@ class Config:
         self.config = self.load_config()
 
         if ConfigKeys.PIVOT not in self.config:
-            self.set(ConfigKeys.PIVOT, float(os.getenv(ConfigKeys.PIVOT)))
+            self.set(ConfigKeys.PIVOT, Env.PIVOT)
 
     def load_config(self) -> dict:
         with open(self.filepath, "r") as file:

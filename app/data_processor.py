@@ -1,4 +1,4 @@
-import os
+import asyncio
 from io import BytesIO
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -9,11 +9,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib
 
-from .config import config
 from .models import History
 from .schemas import Status, Dashboard
 from .utils import calc_ratio
-from constants import ConfigKeys
+from config import ConfigKeys, config, Env
 
 matplotlib.use("Agg")
 
@@ -26,7 +25,8 @@ class DataProcessor:
     def __init__(self, broker: "Broker", tracker: "Tracker") -> None:
         self.broker = broker
         self.tracker = tracker
-        self.TICKER = os.getenv(ConfigKeys.TICKER)
+        self.TICKER = Env.TICKER
+        self.CURRENCY = Env.CURRENCY
 
     async def construct_status(self, histories: pd.DataFrame) -> Status:
         history_3m = histories.iloc[0]
@@ -35,13 +35,16 @@ class DataProcessor:
         idx_7d = histories[History.timestamp.name].searchsorted(time_7d)
         history_7d = histories.iloc[idx_7d]
 
-        balance_map = await self.broker.get_balances()
+        balance_map, current_price, fgi = await asyncio.gather(
+            self.broker.get_balances(),
+            self.broker.get_current_price(self.TICKER),
+            self.broker.get_fgi(self.CURRENCY),
+        )
+
         cash_b = balance_map.get("KRW")
         cash = 0 if not cash_b else cash_b.balance + cash_b.locked
-        coin_b = balance_map.get(self.TICKER)
+        coin_b = balance_map.get(self.CURRENCY)
         quantity = 0 if not coin_b else coin_b.balance + coin_b.locked
-
-        current_price = await self.broker.get_current_price(self.TICKER)
         current_balance = cash + quantity * current_price
 
         estimated_balance_3m = self.estimate_balance_at_price(
@@ -86,6 +89,8 @@ class DataProcessor:
             price_delta_7d=price_delta_7d,
             price_rate_7d=price_rate_7d,
             n_trades=len(histories) - idx_7d,
+            fgi_score=fgi.score,
+            fgi_text=fgi.stage_en,
         )
 
     @staticmethod

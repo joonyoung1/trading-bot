@@ -7,16 +7,17 @@ from typing import Literal
 import aiohttp
 from urllib.parse import urljoin, urlencode, unquote
 
-from .schemas import Balance, Order
-from constants import ConfigKeys
+from .schemas import Balance, Order, FGI
+from config import Env
 from .utils import retry
 
 
 class Broker:
     def __init__(self):
-        self.ACCESS = os.getenv(ConfigKeys.ACCESS)
-        self.SECRET = os.getenv(ConfigKeys.SECRET)
-        self.base_url = "https://api.upbit.com"
+        self.ACCESS = Env.ACCESS
+        self.SECRET = Env.SECRET
+        self.upbit_url = "https://api.upbit.com"
+        self.ubci_url = "https://ubci-api.ubcindex.com"
 
     def initialize(self):
         self.session = aiohttp.ClientSession()
@@ -30,7 +31,7 @@ class Broker:
     @retry()
     async def get_current_price(self, ticker: str) -> float:
         params = {"markets": ticker}
-        url = urljoin(self.base_url, "/v1/ticker")
+        url = urljoin(self.upbit_url, "/v1/ticker")
 
         response = await self.request("GET", url, params=params)
         return response[0]["trade_price"]
@@ -38,24 +39,17 @@ class Broker:
     @retry()
     async def get_balances(self) -> dict[str, Balance]:
         headers = {"Authorization": self.generate_authorization()}
-        url = urljoin(self.base_url, "/v1/accounts")
+        url = urljoin(self.upbit_url, "/v1/accounts")
 
         response = await self.request("GET", url, headers=headers)
         balances = [Balance.model_validate(item) for item in response]
-        return {
-            (
-                balance.currency
-                if balance.currency == "KRW"
-                else f"{balance.unit_currency}-{balance.currency}"
-            ): balance
-            for balance in balances
-        }
+        return {balance.currency: balance for balance in balances}
 
     @retry()
     async def get_order(self, uuid: str) -> Order:
         params = {"uuid": uuid}
         headers = {"Authorization": self.generate_authorization(params=params)}
-        url = urljoin(self.base_url, "/v1/order")
+        url = urljoin(self.upbit_url, "/v1/order")
 
         response = await self.request("GET", url, params=params, headers=headers)
         return Order.model_validate(response)
@@ -64,7 +58,7 @@ class Broker:
     async def get_orders(self, uuids: list[str]) -> dict[str, Order]:
         params = {"uuids[]": uuids}
         headers = {"Authorization": self.generate_authorization(params=params)}
-        url = urljoin(self.base_url, "/v1/orders/uuids")
+        url = urljoin(self.upbit_url, "/v1/orders/uuids")
 
         response = await self.request("GET", url, params=params, headers=headers)
         orders = [Order.model_validate(item) for item in response]
@@ -95,6 +89,7 @@ class Broker:
     async def sell_market_order(self, ticker: str, volume: float) -> Order:
         return await self.place_order(ticker, "ask", "market", volume=volume)
 
+    @retry()
     async def place_order(
         self,
         ticker: str,
@@ -110,7 +105,7 @@ class Broker:
             params["volume"] = volume
 
         headers = {"Authorization": self.generate_authorization(params=params)}
-        url = urljoin(self.base_url, "/v1/orders")
+        url = urljoin(self.upbit_url, "/v1/orders")
 
         response = await self.request("POST", url, json=params, headers=headers)
         return Order.model_validate(response)
@@ -119,15 +114,36 @@ class Broker:
     async def cancel_order(self, uuid: str) -> None:
         params = {"uuid": uuid}
         headers = {"Authorization": self.generate_authorization(params=params)}
-        url = urljoin(self.base_url, "/v1/order")
+        url = urljoin(self.upbit_url, "/v1/order")
         return await self.request("DELETE", url, params=params, headers=headers)
 
     @retry()
     async def cancel_orders(self, ticker: str) -> None:
         params = {"pairs": ticker}
         headers = {"Authorization": self.generate_authorization(params=params)}
-        url = urljoin(self.base_url, "/v1/orders/open")
+        url = urljoin(self.upbit_url, "/v1/orders/open")
         return await self.request("DELETE", url, params=params, headers=headers)
+
+    @retry()
+    async def get_fgi(self, currency: str) -> FGI:
+        url = urljoin(self.ubci_url, "/v1/crix/feargreed")
+
+        response = await self.request("GET", url)
+        pairs = response["pairs"]
+
+        left, right = 0, len(pairs) - 1
+        while left <= right:
+            mid = (left + right) // 2
+
+            fgi = FGI.model_validate(pairs[mid])
+            if fgi.currency == currency:
+                return fgi
+            elif fgi.currency < currency:
+                left = mid + 1
+            else:
+                right = mid - 1
+
+        raise ValueError(f"FGI data for currency {currency} not found")
 
     async def close(self):
         await self.session.close()

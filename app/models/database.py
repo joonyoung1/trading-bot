@@ -4,9 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from .base import Base
-from constants import ConfigKeys
+from config import Env
 
-data_dir = os.getenv(ConfigKeys.DATA_DIR, "data")
+data_dir = Env.DATA_DIR
 os.makedirs(data_dir, exist_ok=True)
 database_path = os.path.join(data_dir, "app.db")
 DATABASE_URL = f"sqlite+aiosqlite:///{database_path}"

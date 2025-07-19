@@ -5,8 +5,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from .utils import get_lower_price, get_upper_price, calc_ratio
-from .config import config
-from constants import ConfigKeys
+from config import ConfigKeys, config, Env
 
 if TYPE_CHECKING:
     from app.broker import Broker
@@ -30,14 +29,14 @@ class TradingBot:
         self.tracker = tracker
 
         self.state = self.State.TERMINATED
-        self.TICKER = os.getenv(ConfigKeys.TICKER)
+        self.TICKER = Env.TICKER
+        self.CURRENCY = Env.CURRENCY
 
     async def initialize(self) -> None:
         await self.broker.cancel_orders(self.TICKER)
         await self.update_balance()
-        await self.calibrate_ratio()
+        await self.calibrate()
         self.update_pivot_price()
-        self.set_optimal_last_price()
 
         self.state = self.State.INITIALIZED
 
@@ -47,18 +46,19 @@ class TradingBot:
         cash = balance_map.get("KRW")
         self.cash = 0 if not cash else cash.balance + cash.locked
 
-        coin = balance_map.get(self.TICKER)
+        coin = balance_map.get(self.CURRENCY)
         self.quantity = 0 if not coin else coin.balance + coin.locked
 
         logger.info(f"cash: {self.cash}, quantity: {self.quantity}")
 
-    async def calibrate_ratio(self) -> None:
-        self.last_price = await self.broker.get_current_price(self.TICKER)
-        volume = self.calc_volume(self.last_price)
+    async def calibrate(self) -> None:
+        cur_price = await self.broker.get_current_price(self.TICKER)
+        self.last_price = await self.calc_optimal_price(cur_price)
+        volume = self.calc_volume(cur_price)
 
         logger.info(f"calibration volume: {volume}")
 
-        if abs(volume) >= 5000:
+        if self.is_trade_profitable(cur_price) and abs(volume) >= 5000:
             if volume > 0:
                 order = await self.broker.buy_market_order(self.TICKER, volume)
             else:
@@ -69,13 +69,14 @@ class TradingBot:
             await self.wait_order_closed(order.uuid)
             await self.update_balance()
             await self.record_trade()
+            self.last_price = await self.calc_optimal_price(cur_price)
 
-    def set_optimal_last_price(self) -> None:
-        min_volume = abs(self.calc_volume(self.last_price))
-        optimal_price = self.last_price
+    async def calc_optimal_price(self, cur_price: float) -> float:
+        min_volume = abs(self.calc_volume(cur_price))
+        optimal_price = cur_price
 
         for func in (get_lower_price, get_upper_price):
-            price = self.last_price
+            price = cur_price
             while True:
                 price = func(price)
                 volume = abs(self.calc_volume(price))
@@ -85,7 +86,7 @@ class TradingBot:
                     optimal_price = price
                 else:
                     break
-        self.last_price = optimal_price
+        return optimal_price
 
     async def start(self) -> None:
         if self.state != self.State.INITIALIZED:
