@@ -2,12 +2,9 @@ import os
 import asyncio
 import logging
 from logging.handlers import RotatingFileHandler
-from dotenv import load_dotenv
 
 from app import Manager, init_db
 from config import Env
-
-load_dotenv()
 
 
 def setting_logger() -> None:

@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def _get_required_env(key: str) -> str:
