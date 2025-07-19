@@ -94,7 +94,7 @@ class DataProcessor:
             price_rate_7d=price_rate_7d,
             n_trades=len(histories) - idx_7d,
             fgi_score=fgi.score,
-            fgi_text=fgi.stage_en,
+            fgi_text=fgi.state,
         )
 
     @staticmethod

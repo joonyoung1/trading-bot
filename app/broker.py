@@ -6,6 +6,8 @@ from urllib.parse import urljoin, urlencode, unquote
 import aiohttp
 import jwt
 
+from app.schemas.schemas import FGIResponse
+
 from .schemas import Balance, Order, FGI
 from config import Env
 from .utils import retry
@@ -16,7 +18,7 @@ class Broker:
         self.ACCESS = Env.ACCESS
         self.SECRET = Env.SECRET
         self.upbit_url = "https://api.upbit.com"
-        self.ubci_url = "https://ubci-api.ubcindex.com"
+        self.datalab_url = "https://datalab-api.upbit.com"
 
     def initialize(self):
         self.session = aiohttp.ClientSession()
@@ -129,22 +131,16 @@ class Broker:
 
     @retry()
     async def get_fgi(self, currency: str) -> FGI:
-        url = urljoin(self.ubci_url, "/v1/crix/feargreed")
+        pair = f"{currency}/KRW"
+        url = urljoin(self.datalab_url, "api/v1/indicator/fear/assets")
 
-        response = await self.request("GET", url)
-        pairs = response["pairs"]
+        response = await self.request("GET", url, params={"locale": "ko"})
+        records = response["data"]["records"]
 
-        left, right = 0, len(pairs) - 1
-        while left <= right:
-            mid = (left + right) // 2
-
-            fgi = FGI.model_validate(pairs[mid])
-            if fgi.currency == currency:
-                return fgi
-            elif fgi.currency < currency:
-                left = mid + 1
-            else:
-                right = mid - 1
+        for record in records:
+            record = FGIResponse.model_validate(record)
+            if record.pair == pair:
+                return FGI.from_response(record)
 
         raise ValueError(f"FGI data for currency {currency} not found")
 
