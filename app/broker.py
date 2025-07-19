@@ -1,11 +1,10 @@
-import os
-import jwt
 import hashlib
-import uuid
+import uuid as uuid_lib
 from typing import Literal
+from urllib.parse import urljoin, urlencode, unquote
 
 import aiohttp
-from urllib.parse import urljoin, urlencode, unquote
+import jwt
 
 from .schemas import Balance, Order, FGI
 from config import Env
@@ -98,7 +97,11 @@ class Broker:
         price: float | None = None,
         volume: float | None = None,
     ) -> Order:
-        params = {"market": ticker, "side": side, "ord_type": ord_type}
+        params: dict[str, str | float] = {
+            "market": ticker,
+            "side": side,
+            "ord_type": ord_type,
+        }
         if price:
             params["price"] = price
         if volume:
@@ -156,7 +159,7 @@ class Broker:
         return m.hexdigest()
 
     def generate_authorization(self, params: dict | None = None):
-        payload = {"access_key": self.ACCESS, "nonce": str(uuid.uuid4())}
+        payload = {"access_key": self.ACCESS, "nonce": str(uuid_lib.uuid4())}
         if params:
             payload["query_hash"] = self.params_to_query_hash(params)
             payload["query_hash_alg"] = "SHA512"

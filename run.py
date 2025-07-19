@@ -1,13 +1,14 @@
 import os
 import asyncio
-from dotenv import load_dotenv
 import logging
 from logging.handlers import RotatingFileHandler
-
-load_dotenv()
+from dotenv import load_dotenv
 
 from app import Manager, init_db
 from config import Env
+
+load_dotenv()
+
 
 def setting_logger() -> None:
     log_dir = Env.LOG_DIR

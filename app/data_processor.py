@@ -32,8 +32,12 @@ class DataProcessor:
         history_3m = histories.iloc[0]
 
         time_7d = datetime.now() - timedelta(days=7)
-        idx_7d = histories[History.timestamp.name].searchsorted(time_7d)
-        history_7d = histories.iloc[idx_7d]
+        idx_7d = int(
+            histories[History.timestamp.name].searchsorted(np.datetime64(time_7d))
+        )
+        history_7d = (
+            histories.iloc[idx_7d] if idx_7d < len(histories) else histories.iloc[0]
+        )
 
         balance_map, current_price, fgi = await asyncio.gather(
             self.broker.get_balances(),

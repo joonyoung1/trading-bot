@@ -1,7 +1,6 @@
 import os
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
 from .base import Base
 from config import Env
@@ -12,9 +11,7 @@ database_path = os.path.join(data_dir, "app.db")
 DATABASE_URL = f"sqlite+aiosqlite:///{database_path}"
 
 engine = create_async_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal: sessionmaker[AsyncSession] = sessionmaker(
-    bind=engine, class_=AsyncSession
-)
+SessionLocal = async_sessionmaker(engine, class_=AsyncSession)
 
 
 async def init_db():

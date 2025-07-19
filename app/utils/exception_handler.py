@@ -7,7 +7,8 @@ import logging
 
 def retry(max_attempts: int = 3, delay: float = 1.0, exceptions=(Exception,)):
     def decorator(func):
-        module_name = inspect.getmodule(func).__name__
+        module = inspect.getmodule(func)
+        module_name = module.__name__ if module else "unknown"
         logger = logging.getLogger(module_name)
 
         @functools.wraps(func)

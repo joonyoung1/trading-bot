@@ -34,10 +34,12 @@ class Tracker:
 
         return pd.DataFrame(
             data,
-            columns=[
-                History.timestamp.name,
-                History.balance.name,
-                History.price.name,
-                History.ratio.name,
-            ],
+            columns=pd.Index(
+                [
+                    History.timestamp.name,
+                    History.balance.name,
+                    History.price.name,
+                    History.ratio.name,
+                ]
+            ),
         )
