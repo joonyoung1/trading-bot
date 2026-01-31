@@ -6,7 +6,7 @@ class History(Base):
     __tablename__ = "histories"
 
     id = Column(Integer, primary_key=True)
-    timestamp = Column(DateTime)
+    timestamp = Column(DateTime, index=True)
     balance = Column(Float)
     price = Column(Float)
     ratio = Column(Float)
