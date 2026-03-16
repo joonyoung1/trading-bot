@@ -63,7 +63,7 @@ class TradingBot:
                 order = await self.broker.buy_market_order(self.TICKER, volume)
             else:
                 order = await self.broker.sell_market_order(
-                    self.TICKER, -volume / self.last_price
+                    self.TICKER, -volume / cur_price
                 )
 
             await self.wait_order_closed(order.uuid)
